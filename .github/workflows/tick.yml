@@ -1,0 +1,18 @@
+# Vercel Hobby only allows daily crons, so the 15-minute scheduler tick runs from here.
+name: Scheduler tick
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /api/cron/tick
+        run: |
+          curl --fail-with-body -sS -m 240 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.APP_URL || 'https://getshiplog.vercel.app' }}/api/cron/tick"

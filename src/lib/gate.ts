@@ -1,4 +1,4 @@
-import { containsSecret } from "./scrub";
+import { containsHardSecret } from "./scrub";
 
 export type GateRule = { kind: "never" | "prefer" | "format"; rule: string; pattern?: string | null };
 
@@ -19,7 +19,7 @@ export type Violation = {
 export type GateResult = { text: string; fixed: string[]; violations: Violation[]; blocked: boolean };
 
 // docs/buffer-api.md §5. X assumes the free tier; Mastodon uses the default server limit.
-const LIMITS: Record<string, number> = {
+export const LIMITS: Record<string, number> = {
   x: 280,
   twitter: 280,
   linkedin: 3000,
@@ -34,11 +34,12 @@ const LIMITS: Record<string, number> = {
   googlebusiness: 4000,
   substack: 10000,
 };
-const DEFAULT_LIMIT = 3000;
+export const DEFAULT_LIMIT = 3000;
 
 const URL_RE = /https?:\/\/\S+/g;
 const HASHTAG_RE = /(?:^|\s)#[\p{L}\p{N}_]+/gu;
-const EMOJI_RE = /\p{Extended_Pictographic}/gu;
+const PICTOGRAPHIC = /\p{Extended_Pictographic}/u;
+const PROTECTED_RE = /`[^`\n]*`|https?:\/\/\S+/g;
 
 const AI_PATTERNS: { re: RegExp; detail: string }[] = [
   {
@@ -58,11 +59,20 @@ const matchCase = (source: string, replacement: string) =>
   /^\p{Lu}/u.test(source) ? upperFirst(replacement) : replacement;
 const atSentenceStart = (before: string) => /(?:^|[.!?]\s*|\n\s*)$/.test(before);
 
+function protectedRanges(text: string): [number, number][] {
+  return [...text.matchAll(PROTECTED_RE)].map((m) => [m.index, m.index + m[0].length]);
+}
+
 function fixDashes(text: string): string {
+  const ranges = protectedRanges(text);
   return text.replace(/[ \t]*,?[ \t]*[—–][ \t]*/g, (m, offset: number, str: string) => {
+    if (ranges.some(([start, end]) => offset < end && offset + m.length > start)) return m;
     const prev = str[offset - 1] ?? "";
     const next = str[offset + m.length] ?? "";
-    if (/\d/.test(prev) && /\d/.test(next) && !/\s/.test(m)) return m;
+    const rest = str.slice(offset + m.length, offset + m.length + 2);
+    if (/\d/.test(prev) && /^v?\d/i.test(rest) && !m.includes(",")) {
+      return /\d/.test(next) && !/\s/.test(m) ? m : "-";
+    }
     if (!prev || prev === "\n") return "";
     if (!next || next === "\n") return "";
     if (/[.!?,;:]/.test(prev)) return " ";
@@ -70,28 +80,27 @@ function fixDashes(text: string): string {
   });
 }
 
+/** `re` captures (1) leading whitespace and (2) the first letter after the phrase, if any. */
 function removePhrase(text: string, re: RegExp): string {
   return text.replace(re, (...args) => {
-    const [, next] = args as [string, string | undefined];
+    const [, lead, next] = args as [string, string, string | undefined];
     const offset = args[args.length - 2] as number;
     const str = args[args.length - 1] as string;
     if (!next) return "";
-    return atSentenceStart(str.slice(0, offset)) ? next.toUpperCase() : next;
+    return lead + (atSentenceStart(str.slice(0, offset)) ? next.toUpperCase() : next);
   });
 }
+
+const DELVE: Record<string, string> = { delve: "dig", delves: "digs", delved: "dug", delving: "digging" };
 
 type Fix = { label: string; apply: (text: string) => string };
 
 const FIXES: Fix[] = [
   { label: "replaced em/en dashes", apply: fixDashes },
   {
-    label: `replaced "delve" with "dig into"`,
+    label: `replaced "delve" with "dig"`,
     apply: (t) =>
-      t.replace(/\b(delve[sd]?)(\s+into)?\b/gi, (_m, word: string) => {
-        const lower = word.toLowerCase();
-        const verb = lower === "delves" ? "digs" : lower === "delved" ? "dug" : "dig";
-        return matchCase(word, `${verb} into`);
-      }),
+      t.replace(/\bdelv(?:e|es|ed|ing)\b/gi, (word) => matchCase(word, DELVE[word.toLowerCase()])),
   },
   {
     label: `replaced "game-changer" with "big change"`,
@@ -99,11 +108,11 @@ const FIXES: Fix[] = [
   },
   {
     label: `removed "in today's fast-paced world"`,
-    apply: (t) => removePhrase(t, /in today['’]s fast[- ]paced world,?\s*(\p{L})?/giu),
+    apply: (t) => removePhrase(t, /([ \t]*)in today['’]s fast[- ]paced world,?[ \t]*(\p{L})?/giu),
   },
   {
     label: `removed "let's dive in"`,
-    apply: (t) => removePhrase(t, /[ \t]*let['’]s dive in\b[.!:…]*[ \t]*(\p{L})?/giu),
+    apply: (t) => removePhrase(t, /([ \t]*)let['’]s dive in\b[.!:…]*[ \t]*(\p{L})?/giu),
   },
   {
     label: "collapsed extra blank lines",
@@ -126,16 +135,23 @@ export function countChars(text: string, channel: string): number {
   }
 }
 
-function hashtagCount(text: string, extra: string[]): number {
+/** Config hashtags the poster will append because the text doesn't already carry them. */
+function appendedHashtags(text: string, extra: string[]): string[] {
   const inText = (text.match(HASHTAG_RE) ?? []).map((h) => h.trim().toLowerCase());
-  const appended = extra
-    .map((h) => (h.startsWith("#") ? h : `#${h}`).toLowerCase())
-    .filter((h) => !inText.includes(h));
-  return inText.length + appended.length;
+  return extra.map((h) => (h.startsWith("#") ? h : `#${h}`)).filter((h) => !inText.includes(h.toLowerCase()));
 }
+
+function emojiCount(text: string): number {
+  return [...new Intl.Segmenter().segment(text)].filter((s) => PICTOGRAPHIC.test(s.segment.replace(/[©®™]/g, "")))
+    .length;
+}
+
+// Cheap ReDoS guard for user-supplied patterns: no huge patterns, no quantified groups that contain quantifiers.
+const isSafePattern = (pattern: string) => pattern.length <= 200 && !/\([^)]*[+*}][^)]*\)\s*[+*{]/.test(pattern);
 
 function neverMatches(text: string, rule: GateRule): boolean {
   if (rule.pattern) {
+    if (!isSafePattern(rule.pattern)) return false;
     try {
       return new RegExp(rule.pattern, "i").test(text);
     } catch {
@@ -166,12 +182,13 @@ export function gate(input: string, opts: GateOptions): GateResult {
     }
   }
   const limit = LIMITS[channel] ?? DEFAULT_LIMIT;
-  const length = countChars(text, channel);
+  const extraTags = appendedHashtags(text, hashtags);
+  const length = countChars([text, ...extraTags].join(" "), channel);
   if (length > limit) violations.push({ kind: "length", detail: `${length}/${limit} characters for ${channel}` });
-  const tags = hashtagCount(text, hashtags);
+  const tags = (text.match(HASHTAG_RE) ?? []).length + extraTags.length;
   if (tags > maxHashtags) violations.push({ kind: "hashtags", detail: `${tags} hashtags (max ${maxHashtags})` });
-  const emoji = text.match(EMOJI_RE)?.length ?? 0;
+  const emoji = emojiCount(text);
   if (emoji > maxEmoji) violations.push({ kind: "emoji", detail: `${emoji} emoji (max ${maxEmoji})` });
 
-  return { text, fixed, violations, blocked: containsSecret(input) || containsSecret(text) };
+  return { text, fixed, violations, blocked: containsHardSecret(input) || containsHardSecret(text) };
 }
