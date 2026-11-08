@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+// containsSecret is deliberately trigger-happy: the gate must only block on hard secrets.
 vi.mock("@/lib/scrub", () => ({
-  containsSecret: (text: string) => /ghp_[A-Za-z0-9]{20,}/.test(text),
+  containsSecret: () => true,
+  containsHardSecret: (text: string) => /ghp_[A-Za-z0-9]{20,}/.test(text),
   scrub: (text: string) => text,
 }));
 
@@ -119,5 +121,54 @@ describe("gate violations", () => {
   it("blocks text containing a secret", () => {
     const r = gate("token ghp_abcdefghijklmnopqrstuvwxyz0123", base);
     expect(r.blocked).toBe(true);
+  });
+});
+
+describe("gate review regressions", () => {
+  it("counts appended config hashtags toward the length limit", () => {
+    const text = "a".repeat(270);
+    const x = { ...base, channel: "x" };
+    expect(gate(text, x).violations.map((v) => v.kind)).not.toContain("length");
+    expect(gate(text, { ...x, hashtags: ["#BuildInPublic"] }).violations.map((v) => v.kind)).toContain("length");
+    expect(gate(`${"a".repeat(255)} #BuildInPublic`, { ...x, hashtags: ["BuildInPublic"] }).violations).toEqual([]);
+  });
+
+  it("replaces only the delve verb", () => {
+    expect(gate("Let's delve deeper into caching.", base).text).toBe("Let's dig deeper into caching.");
+    expect(gate("She delves in. He delved. Delving now.", base).text).toBe("She digs in. He dug. Digging now.");
+  });
+
+  it("keeps numeric and version ranges as hyphens", () => {
+    expect(gate("Pages 10 – 20 changed.", base).text).toBe("Pages 10-20 changed.");
+    expect(gate("Upgraded v1.2–v1.3 today.", base).text).toBe("Upgraded v1.2-v1.3 today.");
+  });
+
+  it("never touches dashes inside URLs or code spans", () => {
+    const t = "See https://example.com/a—b and `x — y` now.";
+    expect(gate(t, base).text).toBe(t);
+  });
+
+  it("removes 'in today's fast-paced world' with its leading space", () => {
+    expect(gate("Built for devs in today's fast-paced world.", base).text).toBe("Built for devs.");
+    expect(gate("We ship in today's fast-paced world, and learn.", base).text).toBe("We ship and learn.");
+  });
+
+  it("skips oversized and catastrophic never patterns", () => {
+    const evil = { kind: "never" as const, rule: "evil", pattern: "(a+)+$" };
+    const huge = { kind: "never" as const, rule: "huge", pattern: "a".repeat(201) };
+    const start = Date.now();
+    const r = gate(`${"a".repeat(40)}!`, { ...base, rules: [evil, huge] });
+    expect(Date.now() - start).toBeLessThan(500);
+    expect(r.violations).toEqual([]);
+  });
+
+  it("counts emoji by grapheme and ignores ©®™", () => {
+    expect(gate("Family 👨‍👩‍👧 and ❤️", base).violations).toEqual([]);
+    expect(gate("Shiplog© Pro® Max™", base).violations).toEqual([]);
+    expect(gate("👨‍👩‍👧 ❤️ 🚀", base).violations.map((v) => v.kind)).toContain("emoji");
+  });
+
+  it("does not block posts that only look like assignments", () => {
+    expect(gate("Now we cap max_tokens: budget200000", base).blocked).toBe(false);
   });
 });

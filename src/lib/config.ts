@@ -7,6 +7,15 @@ const Duration = z.string().regex(/^\d+[dhm]$/, "duration like 7d, 48h or 30m");
 const Time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "time as HH:MM");
 const DayEnum = z.enum(DAYS);
 
+function isValidTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const DigestEvery = z.union([
   z.enum(["1d", "2d", "off"]),
   z.templateLiteral(["weekly:", DayEnum]),
@@ -51,7 +60,7 @@ export const ProjectConfigSchema = z.object({
     daily_token_budget: z.number().int().min(0),
   }),
   channels: z.array(z.string()),
-  timezone: z.string().min(1),
+  timezone: z.string().min(1).refine(isValidTimeZone, "unknown IANA timezone"),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
@@ -99,7 +108,7 @@ const isPlainObject = (v: unknown): v is Plain =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
 function merge(base: unknown, override: unknown): unknown {
-  if (override === undefined) return base;
+  if (override === undefined || override === null) return base;
   if (isPlainObject(base) && isPlainObject(override)) {
     const out: Plain = { ...base };
     for (const [key, value] of Object.entries(override)) out[key] = merge(base[key], value);
@@ -139,7 +148,7 @@ export function resolveConfigWithSources(
 
   const sources: Record<string, ConfigSource> = {};
   for (const path of collectLeaves(config)) {
-    const winner = layers.findLast(([, layer]) => lookup(layer, path) !== undefined);
+    const winner = layers.findLast(([, layer]) => lookup(layer, path) != null);
     sources[path.join(".")] = winner?.[0] ?? "default";
   }
   return { config, sources };

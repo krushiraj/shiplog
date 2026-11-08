@@ -60,9 +60,13 @@ const normalize = (rule: string) => rule.trim().toLowerCase().replace(/^[\p{P}\s
 
 export function matchRule(rules: Rule[], proposal: RuleProposal): Rule | undefined {
   const text = normalize(proposal.rule);
-  return rules.find((r) => (proposal.pattern && r.pattern === proposal.pattern) || normalize(r.rule) === text);
+  return rules.find(
+    (r) => r.kind === proposal.kind && ((proposal.pattern && r.pattern === proposal.pattern) || normalize(r.rule) === text),
+  );
 }
 
+/** Only unconfirmed single sightings fade out; active rules stay until the user removes them. */
 export function isExpired(rule: Rule, now: Date, days = 30): boolean {
+  if (rule.active || rule.sightings > 1) return false;
   return now.getTime() - rule.lastSeenAt.getTime() > days * DAY_MS;
 }

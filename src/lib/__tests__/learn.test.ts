@@ -67,13 +67,19 @@ describe("matchRule", () => {
     expect(matchRule([r], { kind: "never", rule: "  avoid 'super excited'" })).toBe(r);
   });
 
+  it("requires the same kind", () => {
+    const r = rule({ kind: "prefer", rule: "Avoid 'super excited'", pattern: "super excited" });
+    expect(matchRule([r], { kind: "never", rule: "Avoid 'super excited'", pattern: "super excited" })).toBeUndefined();
+    expect(matchRule([r], { kind: "prefer", rule: "Avoid 'super excited'" })).toBe(r);
+  });
+
   it("returns undefined when nothing matches", () => {
     expect(matchRule([rule({ rule: "No emoji" })], proposal)).toBeUndefined();
   });
 });
 
 describe("isExpired", () => {
-  const r: Rule = { ...proposal, sightings: 2, active: true, lastSeenAt: new Date("2026-10-01T00:00:00Z") };
+  const r: Rule = { ...proposal, sightings: 1, active: false, lastSeenAt: new Date("2026-10-01T00:00:00Z") };
 
   it("expires after 30 days unseen", () => {
     expect(isExpired(r, new Date("2026-11-08T00:00:00Z"))).toBe(true);
@@ -82,5 +88,11 @@ describe("isExpired", () => {
 
   it("honours a custom window", () => {
     expect(isExpired(r, new Date("2026-10-20T00:00:00Z"), 10)).toBe(true);
+  });
+
+  it("never expires active rules", () => {
+    const active: Rule = { ...r, sightings: 2, active: true };
+    expect(isExpired(active, new Date("2027-11-08T00:00:00Z"))).toBe(false);
+    expect(isExpired({ ...r, active: true }, new Date("2027-11-08T00:00:00Z"))).toBe(false);
   });
 });

@@ -8,15 +8,18 @@ export type NormalisedEvent = {
   payload: Record<string, unknown>;
 };
 
+const MERGE_COMMIT = /^Merge (pull request|(remote-tracking )?branch|tag|commit) /;
+
 const labelNames = (labels: { name: string }[] = []) => labels.map((l) => l.name);
 
 function normalisePush(repo: string, p: any): NormalisedEvent[] {
   if (p.forced || p.deleted || p.ref !== `refs/heads/${p.repository.default_branch}`) return [];
   return (p.commits ?? [])
-    .filter((c: any) => !/^Merge (pull request|branch)/.test(c.message))
+    .filter((c: any) => !MERGE_COMMIT.test(c.message))
     .map((c: any): NormalisedEvent => {
       const isRevert = c.message.startsWith('Revert "');
       const revertsSha = c.message.match(/This reverts commit ([0-9a-f]{7,40})\./)?.[1];
+      const prNumber = c.message.split("\n")[0].match(/\(#(\d+)\)\s*$/)?.[1];
       return {
         repoFullName: repo,
         kind: isRevert ? "revert" : "commit",
@@ -30,6 +33,7 @@ function normalisePush(repo: string, p: any): NormalisedEvent[] {
           modified: c.modified ?? [],
           removed: c.removed ?? [],
           ...(isRevert && revertsSha ? { revertsSha } : {}),
+          ...(prNumber ? { prNumber: Number(prNumber) } : {}),
         },
       };
     });
@@ -46,6 +50,7 @@ export function normalise(eventName: string, payload: any, now = new Date()): No
     case "pull_request": {
       const pr = payload.pull_request;
       if (payload.action !== "closed" || !pr?.merged) return [];
+      if (pr.base?.ref !== payload.repository.default_branch) return [];
       return [{
         repoFullName: repo,
         kind: "pr_merged",

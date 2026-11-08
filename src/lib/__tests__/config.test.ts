@@ -56,6 +56,25 @@ describe("resolveConfig", () => {
     expect(config.triggers.digest.every).toBe("weekly:Fri");
   });
 
+  it("rejects unknown timezones", () => {
+    expect(() => resolveConfig({ timezone: "Mars/Base" }, {})).toThrow();
+    expect(resolveConfig({ timezone: "America/New_York" }, {}).timezone).toBe("America/New_York");
+  });
+
+  it("treats null in a layer as inherit", () => {
+    const { config, sources } = resolveConfigWithSources(
+      { timezone: "Asia/Kolkata", posting: { hashtags: ["#a"] } },
+      { timezone: null, posting: { hashtags: null, link: "none" } } as never,
+      { review: null } as never,
+    );
+    expect(config.timezone).toBe("Asia/Kolkata");
+    expect(config.posting.hashtags).toEqual(["#a"]);
+    expect(config.posting.link).toBe("none");
+    expect(config.review).toEqual(DEFAULTS.review);
+    expect(sources["timezone"]).toBe("user");
+    expect(sources["posting.hashtags"]).toBe("user");
+  });
+
   it("rejects invalid values", () => {
     expect(() => resolveConfig({}, { review: { mode: "yolo" } } as never)).toThrow();
     expect(() => resolveConfig({}, { triggers: { digest: { at: "25:00" } } })).toThrow();

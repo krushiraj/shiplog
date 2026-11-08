@@ -70,6 +70,25 @@ describe("normalise push", () => {
     expect(event.kind).toBe("revert");
     expect(event.payload.revertsSha).toBeUndefined();
   });
+
+  it("skips merge-commit variants", () => {
+    const p = clone(push);
+    p.commits[0].message = "Merge remote-tracking branch 'origin/main'";
+    p.commits[1].message = "Merge tag 'v1.0'";
+    expect(normalise("push", p)).toEqual([]);
+    p.commits[0].message = "Merge commit 'abc123' into main";
+    p.commits[1].message = "Merged the scoring tweaks";
+    expect(normalise("push", p).map((e) => e.payload.message)).toEqual(["Merged the scoring tweaks"]);
+  });
+
+  it("records the PR number from squash-merge subjects", () => {
+    const p = clone(push);
+    p.commits[0].message = "Add scoring (#12)";
+    p.commits[1].message = "Add scoring (#12) and more";
+    const [first, second] = normalise("push", p);
+    expect(first.payload.prNumber).toBe(12);
+    expect(second.payload).not.toHaveProperty("prNumber");
+  });
 });
 
 describe("normalise pull_request", () => {
@@ -92,6 +111,12 @@ describe("normalise pull_request", () => {
         changedFiles: 6,
       },
     });
+  });
+
+  it("ignores PRs merged into non-default branches", () => {
+    const p = clone(prMerged);
+    p.pull_request.base.ref = "release/1.x";
+    expect(normalise("pull_request", p)).toEqual([]);
   });
 
   it("ignores PRs closed without merging", () => {

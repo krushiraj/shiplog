@@ -37,4 +37,22 @@ describe("crypto", () => {
       process.env.TOKEN_ENC_KEY = prev;
     }
   });
+
+  it("rejects a truncated auth tag", () => {
+    const [iv, tag, ct] = encrypt("secret token", key).split(".");
+    const short = Buffer.from(tag, "base64").subarray(0, 4).toString("base64");
+    expect(() => decrypt([iv, short, ct].join("."), key)).toThrow();
+  });
+
+  it("rejects a wrong-length iv", () => {
+    const [, tag, ct] = encrypt("secret token", key).split(".");
+    expect(() => decrypt([randomBytes(16).toString("base64"), tag, ct].join("."), key)).toThrow();
+  });
+
+  it("binds optional associated data", () => {
+    const blob = encrypt("secret token", key, "user:1");
+    expect(decrypt(blob, key, "user:1")).toBe("secret token");
+    expect(() => decrypt(blob, key, "user:2")).toThrow();
+    expect(() => decrypt(blob, key)).toThrow();
+  });
 });

@@ -55,6 +55,54 @@ describe("isDigestDue", () => {
   });
 });
 
+describe("isDigestDue on a ticking clock", () => {
+  // Runs the scheduler every `stepMin` minutes and records when a digest goes out.
+  const fires = (cfg: DigestConfig, tz: string, from: string, to: string, stepMin = 15) => {
+    let last: Date | null = null;
+    const out: string[] = [];
+    for (let t = d(from).getTime(); t < d(to).getTime(); t += stepMin * 60_000) {
+      const now = new Date(t);
+      if (isDigestDue(cfg, tz, last, now)) {
+        out.push(now.toISOString());
+        last = now;
+      }
+    }
+    return out;
+  };
+  const NY = "America/New_York";
+
+  it("fires once on the spring-forward day for a nonexistent local time", () => {
+    expect(fires(digest({ at: "02:30" }), NY, "2026-03-07T05:00:00Z", "2026-03-10T04:00:00Z")).toEqual([
+      "2026-03-07T07:30:00.000Z",
+      "2026-03-08T07:30:00.000Z", // 03:30 EDT, just after the gap
+      "2026-03-09T06:30:00.000Z",
+    ]);
+  });
+
+  it("fires once on the fall-back day for a repeated local time", () => {
+    expect(fires(digest({ at: "01:30" }), NY, "2026-10-31T04:00:00Z", "2026-11-03T05:00:00Z")).toEqual([
+      "2026-10-31T05:30:00.000Z",
+      "2026-11-01T05:30:00.000Z",
+      "2026-11-02T06:30:00.000Z",
+    ]);
+  });
+
+  it("fires at the first tick after a slot that falls between ticks near midnight", () => {
+    expect(fires(digest({ at: "23:50" }), "UTC", "2026-11-10T00:00:00Z", "2026-11-13T00:00:00Z")).toEqual([
+      "2026-11-10T00:00:00.000Z",
+      "2026-11-11T00:00:00.000Z",
+      "2026-11-12T00:00:00.000Z",
+    ]);
+  });
+
+  it("fires a weekly slot on the next tick even when that tick is the next day", () => {
+    const cfg = digest({ every: "weekly:Sun", at: "23:30" });
+    // Sun 15 Nov 23:30 EST = 04:30Z Mon; the tick is Mon 00:10 local.
+    expect(isDigestDue(cfg, NY, d("2026-11-09T05:00:00Z"), d("2026-11-16T05:10:00Z"))).toBe(true);
+    expect(isDigestDue(cfg, NY, d("2026-11-16T04:31:00Z"), d("2026-11-16T05:10:00Z"))).toBe(false);
+  });
+});
+
 describe("selectCards", () => {
   const now = d("2026-11-10T13:00:00Z");
   const card = (id: string, significance: number, daysAgo: number, cancelled = false) => ({

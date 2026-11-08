@@ -32,15 +32,31 @@ function offsetMs(date: Date, timeZone: string): number {
   return asUtc - Math.floor(date.getTime() / 60_000) * 60_000;
 }
 
-/** The UTC instant of `at` (HH:MM) on the local calendar day containing `now`. */
-function scheduledInstant(at: string, timeZone: string, now: Date): { instant: Date; weekday: string } {
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * The UTC instant of a local wall-clock time. Tries the offsets in effect on either side of the
+ * day: a repeated time (fall-back) takes its first occurrence, a skipped time (spring-forward)
+ * takes the later candidate so the slot lands just after the gap.
+ */
+function wallClockInstant(wallClock: number, timeZone: string): number {
+  const candidates = [-14 * HOUR, 14 * HOUR].map((shift) => wallClock - offsetMs(new Date(wallClock + shift), timeZone));
+  const valid = candidates.filter((c) => c + offsetMs(new Date(c), timeZone) === wallClock);
+  return valid.length ? Math.min(...valid) : Math.max(...candidates);
+}
+
+/** The latest eligible slot at or before `now`, and how many local days back it falls. */
+function latestSlot(digest: DigestConfig, timeZone: string, now: Date): { slot: number; daysBack: number } | null {
   const p = localParts(now, timeZone);
-  const [hour, minute] = at.split(":").map(Number);
-  const wallClock = Date.UTC(p.year, p.month - 1, p.day, hour, minute);
-  // Two passes so the offset is the one in effect at the slot, not at `now` (DST).
-  let instant = wallClock - offsetMs(now, timeZone);
-  instant = wallClock - offsetMs(new Date(instant), timeZone);
-  return { instant: new Date(instant), weekday: p.weekday };
+  const [hour, minute] = digest.at.split(":").map(Number);
+  const weekly = digest.every.startsWith("weekly:") ? digest.every.slice("weekly:".length) : null;
+  for (let daysBack = 0; daysBack <= 8; daysBack++) {
+    const wallClock = Date.UTC(p.year, p.month - 1, p.day - daysBack, hour, minute);
+    if (weekly && WEEKDAYS[new Date(wallClock).getUTCDay()] !== weekly) continue;
+    const slot = wallClockInstant(wallClock, timeZone);
+    if (slot <= now.getTime()) return { slot, daysBack };
+  }
+  return null;
 }
 
 export function isDigestDue(
@@ -50,12 +66,15 @@ export function isDigestDue(
   now: Date,
 ): boolean {
   if (digest.every === "off") return false;
-  const { instant, weekday } = scheduledInstant(digest.at, timezone, now);
-  if (now < instant) return false;
-  if (lastDigestAt && lastDigestAt >= instant) return false;
-  if (digest.every === "2d" && lastDigestAt && now.getTime() - lastDigestAt.getTime() < 47 * HOUR) return false;
-  if (digest.every.startsWith("weekly:") && digest.every.slice("weekly:".length) !== weekday) return false;
-  return true;
+  const latest = latestSlot(digest, timezone, now);
+  if (!latest) return false;
+  const sinceSlot = now.getTime() - latest.slot;
+  // A slot missed by a day or more is skipped rather than posted late.
+  if (sinceSlot >= 24 * HOUR) return false;
+  // First run: only today's slot, or one that just passed across midnight.
+  if (!lastDigestAt) return latest.daysBack === 0 || sinceSlot < HOUR;
+  if (lastDigestAt.getTime() >= latest.slot) return false;
+  return digest.every !== "2d" || now.getTime() - lastDigestAt.getTime() >= 47 * HOUR;
 }
 
 type SelectableCard = { id: string; significance: number; occurredAt: Date; cancelled: boolean };
