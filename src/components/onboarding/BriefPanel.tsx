@@ -101,7 +101,7 @@ export function BriefPanel({ projectId, initialBrief, initiallyBuilding }: { pro
     <Section
       title="Project brief"
       description={brief.pitch}
-      aside={<Button size="small" variant="ghost" leadingIcon={RiRefreshLine} onClick={rebuild}>Rebuild</Button>}
+      aside={<Button size="small" variant="secondary" className="shrink-0" leadingIcon={RiRefreshLine} onClick={rebuild}>Rebuild</Button>}
     >
       <dl className="grid gap-4 sm:grid-cols-2">
         {brief.audience && (
