@@ -95,6 +95,17 @@ describe("extractVoice", () => {
     expect(callJson).not.toHaveBeenCalled();
   });
 
+  it("extracts and saves only the requested registers", async () => {
+    const { deps, saved, callJson } = fakeDeps();
+    const result = await extractVoice("u1", { samples: ["post"], registers: ["linkedin"] }, deps);
+    expect(callJson).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ linkedin: dna("long") });
+    expect(saved.map((s) => s.register)).toEqual(["linkedin"]);
+
+    const fromPreset = await extractVoice("u1", { preset: "plain", registers: ["x-short"] }, deps);
+    expect(Object.keys(fromPreset)).toEqual(["x-short"]);
+  });
+
   it("caps samples at 20", async () => {
     const { deps } = fakeDeps();
     const samples = Array.from({ length: 21 }, (_, i) => `post ${i}`);

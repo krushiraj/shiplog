@@ -35,7 +35,20 @@ export const SENT_POSTS_QUERY = /* GraphQL */ `
       filter: { status: [sent], channelIds: $channelIds }
       sort: [{ field: createdAt, direction: desc }]
     }) {
-      edges { cursor node { id text sentAt channelId channelService externalLink } }
+      edges {
+        cursor
+        node {
+          id text sentAt channelId channelService
+          metadata {
+            ... on TwitterPostMetadata { thread { text } retweet { id } }
+            ... on ThreadsPostMetadata { thread { text } }
+            ... on BlueskyPostMetadata { thread { text } }
+            ... on MastodonPostMetadata { thread { text } }
+            ... on LinkedInPostMetadata { firstComment }
+            ... on InstagramPostMetadata { firstComment }
+          }
+        }
+      }
       pageInfo { hasNextPage endCursor }
     }
   }
@@ -90,9 +103,18 @@ export type CreatePostResult = {
     | { message: string };
 };
 
+/** Union members of `Post.metadata` that matter for voice; other networks come back as `{}`. */
+export type SentPostMetadata = {
+  thread?: { text: string | null }[];
+  retweet?: { id: string } | null;
+  firstComment?: string | null;
+} | null;
+
+export type SentPost = { id: string; text: string | null; sentAt: string | null; channelId: string; channelService: string; metadata: SentPostMetadata };
+
 export type SentPostsResult = {
   posts: {
-    edges: { cursor: string; node: { id: string; text: string | null; sentAt: string | null; channelId: string; channelService: string; externalLink: string | null } }[] | null;
+    edges: { cursor: string; node: SentPost }[] | null;
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
 };

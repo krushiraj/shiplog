@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
-import { RiArrowRightLine, RiCheckLine, RiGithubLine, RiMicLine } from "@remixicon/react";
+import { RiArrowRightLine, RiCheckLine, RiGithubLine, RiQuillPenLine } from "@remixicon/react";
 import { db } from "@/db";
 import { githubInstallations, projects, users, voiceProfiles } from "@/db/schema";
 import { Chip } from "@/components/base/badges/chip";
@@ -125,10 +125,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
       </Section>
 
       <Section
-        title={<StepTitle n={3} done={hasVoice}>Teach Shiplog your voice</StepTitle>}
-        description="Pick a few posts you wrote, answer six questions, or start from a preset."
+        title={<StepTitle n={3} done={hasVoice}>Teach Shiplog your writing style</StepTitle>}
+        description="Shiplog reads your recent posts through Buffer and learns how you write. If there aren't enough, paste a few or answer six questions."
         aside={
-          <ButtonLink href="/onboarding/voice" variant={hasProject && !hasVoice ? "primary" : "secondary"} leadingIcon={RiMicLine}>
+          <ButtonLink href="/onboarding/voice" variant={hasProject && !hasVoice ? "primary" : "secondary"} leadingIcon={RiQuillPenLine}>
             {hasVoice ? "Redo" : "Start"}
           </ButtonLink>
         }
