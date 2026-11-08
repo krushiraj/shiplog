@@ -5,6 +5,7 @@ import { bufferGql } from "@/lib/buffer/client";
 import { OAuthError, requestToken } from "@/lib/buffer/oauth";
 import { ACCOUNT_QUERY, CHANNELS_QUERY, type AccountResult, type ChannelsResult } from "@/lib/buffer/queries";
 import { saveTokens } from "@/lib/buffer/tokens";
+import { GITHUB_INSTALL_COOKIE } from "@/lib/github/app";
 import { OAUTH_COOKIE, setSession, verifyTemp } from "@/lib/session";
 
 type OAuthCookie = { state: string; verifier: string };
@@ -60,7 +61,8 @@ export async function GET(req: NextRequest) {
     await saveTokens(user.id, tokens);
     await setSession(user.id);
 
-    const res = NextResponse.redirect(new URL("/onboarding", appUrl));
+    const pendingInstall = req.cookies.has(GITHUB_INSTALL_COOKIE);
+    const res = NextResponse.redirect(new URL(pendingInstall ? "/api/github/installed" : "/onboarding", appUrl));
     res.cookies.delete(OAUTH_COOKIE);
     return res;
   } catch (e) {
