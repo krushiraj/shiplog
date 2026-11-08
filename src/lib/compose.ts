@@ -7,6 +7,7 @@ import { composePrompt, voiceCheckPrompt, type CardInput } from "@/lib/ai/prompt
 import { ComposeSchema, VoiceCheckSchema, type Brief } from "@/lib/ai/schemas";
 import { resolveTargets } from "@/lib/channels";
 import { resolveConfig, type PartialConfig } from "@/lib/config";
+import { displayRepo } from "@/lib/demo";
 import { gate, type Violation } from "@/lib/gate";
 
 export type ComposeCard = {
@@ -108,7 +109,7 @@ export async function compose(
   );
   const activeRules = ctx.rules.filter((r) => !r.register || registers.has(r.register));
   const repo = ctx.cards[0]?.repoFullName;
-  const link = config.posting.link !== "none" && repo ? `https://github.com/${repo}` : null;
+  const link = config.posting.link !== "none" && repo ? `https://github.com/${displayRepo(repo)}` : null;
 
   let usage = ZERO;
   let themes: string[] = [];
