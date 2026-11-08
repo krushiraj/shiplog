@@ -12,6 +12,11 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
+    // Webhook payloads and test fixtures are loosely typed by nature.
+    files: ["src/lib/github/**", "src/lib/analyse.ts", "src/lib/__tests__/**"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
+  },
+  {
     ignores: [
       "node_modules/**",
       ".next/**",
