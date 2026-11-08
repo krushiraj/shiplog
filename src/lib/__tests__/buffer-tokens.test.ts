@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { getAccessToken, saveTokens, MemoryTokenStore } from "@/lib/buffer/tokens";
 
 const env = { clientId: "cid", clientSecret: "sec" };
-const fastSleep = () => new Promise<void>((r) => setTimeout(r, 1));
 
 function fakeTokenEndpoint(delayMs = 20) {
   let n = 0;
@@ -32,9 +31,17 @@ describe("getAccessToken", () => {
     const store = new MemoryTokenStore();
     await store.save("u1", { accessToken: "at-old", refreshToken: "rt-old", expiresAt: new Date(Date.now() - 1000) });
     const { fetchFn, calls, bodies } = fakeTokenEndpoint();
+    // Waiters poll a fixed number of times, so a real-time sleep races the refresh; wake them only once it is saved.
+    let refreshed!: () => void;
+    const saved = new Promise<void>((r) => (refreshed = r));
+    const save = store.save.bind(store);
+    store.save = async (...args) => {
+      await save(...args);
+      refreshed();
+    };
 
     const results = await Promise.all(
-      Array.from({ length: 5 }, () => getAccessToken("u1", { store, fetchFn, sleep: fastSleep, ...env })),
+      Array.from({ length: 5 }, () => getAccessToken("u1", { store, fetchFn, sleep: () => saved, ...env })),
     );
 
     expect(calls).toHaveBeenCalledTimes(1);
