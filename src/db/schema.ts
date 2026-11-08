@@ -38,6 +38,10 @@ export const githubInstallations = pgTable("github_installations", {
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   accountLogin: text("account_login").notNull(),
   suspended: boolean("suspended").notNull().default(false),
+  // Set once GitHub user OAuth proved the user can access this installation; only verified rows are trusted.
+  githubUserId: integer("github_user_id"),
+  githubLogin: text("github_login"),
+  verifiedAt: timestamp("verified_at"),
 });
 
 export const projects = pgTable("projects", {

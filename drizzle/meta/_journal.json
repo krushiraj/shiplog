@@ -8,6 +8,13 @@
       "when": 1794131153713,
       "tag": "0000_organic_white_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794146588677,
+      "tag": "0001_faithful_millenium_guard",
+      "breakpoints": true
     }
   ]
 }

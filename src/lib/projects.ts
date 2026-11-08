@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { db as defaultDb, type Db } from "@/db";
 import { githubInstallations, projectRepos, projects, users, type CachedChannel } from "@/db/schema";
@@ -46,6 +46,10 @@ export type ProjectDeps = {
   listRepos: (installationId: number) => Promise<InstallationRepo[]>;
 };
 
+// Only installations proven through GitHub user OAuth are trusted.
+const verifiedInstallationsOf = (userId: string) =>
+  and(eq(githubInstallations.userId, userId), eq(githubInstallations.suspended, false), isNotNull(githubInstallations.verifiedAt));
+
 export function drizzleProjectStore(database: Db = defaultDb): ProjectStore {
   return {
     async getUser(userId) {
@@ -56,7 +60,7 @@ export function drizzleProjectStore(database: Db = defaultDb): ProjectStore {
       const rows = await database
         .select({ id: githubInstallations.installationId })
         .from(githubInstallations)
-        .where(and(eq(githubInstallations.userId, userId), eq(githubInstallations.suspended, false)));
+        .where(verifiedInstallationsOf(userId));
       return rows.map((r) => r.id);
     },
     async insertProject(project, repos) {
@@ -127,7 +131,7 @@ export async function listUserRepos(userId: string, database: Db = defaultDb): P
   const installs = await database
     .select({ installationId: githubInstallations.installationId, accountLogin: githubInstallations.accountLogin })
     .from(githubInstallations)
-    .where(and(eq(githubInstallations.userId, userId), eq(githubInstallations.suspended, false)));
+    .where(verifiedInstallationsOf(userId));
   return Promise.all(
     installs.map(async (i) => {
       try {

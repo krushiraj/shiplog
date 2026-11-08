@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { RiArrowRightLine, RiCheckLine, RiGithubLine, RiMicLine } from "@remixicon/react";
 import { db } from "@/db";
 import { githubInstallations, projects, users, voiceProfiles } from "@/db/schema";
@@ -15,6 +15,7 @@ const GITHUB_NOTICE: Record<string, string> = {
   requested: "Your GitHub org owner needs to approve the install. Come back once they have.",
   missing: "GitHub did not send an installation id. Try installing again.",
   taken: "That installation is already linked to another Shiplog account.",
+  unverified: "Your GitHub account cannot access that installation. Sign in to GitHub as someone who installed it.",
   error: "We could not reach GitHub to link the installation. Try again.",
 };
 
@@ -40,7 +41,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
   const [[user], installs, userProjects, voice] = await Promise.all([
     db.select({ email: users.email, channels: users.channels }).from(users).where(eq(users.id, userId)).limit(1),
-    db.select().from(githubInstallations).where(eq(githubInstallations.userId, userId)),
+    db.select().from(githubInstallations).where(and(eq(githubInstallations.userId, userId), isNotNull(githubInstallations.verifiedAt))),
     db.select({ id: projects.id, name: projects.name }).from(projects).where(eq(projects.userId, userId)),
     db
       .select({ id: voiceProfiles.id })

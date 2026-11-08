@@ -4,7 +4,7 @@ import { Webhooks } from "@octokit/webhooks";
 
 export type GitHub = Octokit;
 
-// Holds the installation id across a Buffer sign-in started from the GitHub setup URL.
+// Holds the installation id across a Buffer sign-in started from the GitHub install callback.
 export const GITHUB_INSTALL_COOKIE = "shiplog_gh_install";
 
 let app: App | undefined;
