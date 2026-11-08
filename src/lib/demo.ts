@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { DEMO_SESSION_BUDGET_USD, DemoLimitError } from "@/lib/ai/budget";
 import {
+  aiUsage,
   changeCards,
   demoSessions,
   drafts,
@@ -16,16 +18,9 @@ import {
 } from "@/db/schema";
 import fixture from "../../fixtures/demo.json";
 
-export const DEMO_AI_LIMIT = 15;
+export { DEMO_SESSION_BUDGET_USD, DemoLimitError };
 const ACCOUNT_PREFIX = "demo:";
 const HOUR = 3_600_000;
-
-export class DemoLimitError extends Error {
-  constructor() {
-    super(`The demo allows ${DEMO_AI_LIMIT} AI calls. Connect Buffer to keep going.`);
-    this.name = "DemoLimitError";
-  }
-}
 
 /**
  * Demo rows use their own repo name so real webhooks, the analyser and real projects
@@ -135,8 +130,8 @@ export function buildDemoSeed(sessionId: string, now: Date, newId: () => string 
 export interface DemoStore {
   insertSeed(seed: DemoSeed): Promise<void>;
   sessionIdForUser(userId: string): Promise<string | null>;
-  /** Atomically increments and returns the session's AI call count. */
-  incrementAiCalls(sessionId: string): Promise<number>;
+  /** Dollars of AI the demo user has spent (one demo user per session), from ai_usage. */
+  aiSpendUsd(userId: string): Promise<number>;
   expiredSessions(before: Date): Promise<string[]>;
   /** Deletes the sessions and every row created for them. */
   deleteSessions(ids: string[]): Promise<void>;
@@ -156,12 +151,12 @@ export async function isDemoUser(userId: string, deps: DemoDeps = {}): Promise<b
   return (await (deps.store ?? drizzleDemoStore).sessionIdForUser(userId)) !== null;
 }
 
-/** Counts one AI call against a demo session; a no-op for real users. */
+/** Throws DemoLimitError once a demo session has spent its AI allowance; a no-op for real users. */
 export async function chargeDemoAi(userId: string, deps: DemoDeps = {}): Promise<void> {
   const store = deps.store ?? drizzleDemoStore;
-  const sessionId = await store.sessionIdForUser(userId);
-  if (!sessionId) return;
-  if ((await store.incrementAiCalls(sessionId)) > DEMO_AI_LIMIT) throw new DemoLimitError();
+  if (!(await store.sessionIdForUser(userId))) return;
+  const spent = await store.aiSpendUsd(userId);
+  if (spent >= DEMO_SESSION_BUDGET_USD) throw new DemoLimitError(Math.max(0, DEMO_SESSION_BUDGET_USD - spent));
 }
 
 export async function withDemoBudget<T>(userId: string, fn: () => Promise<T>, deps: DemoDeps = {}): Promise<T> {
@@ -207,14 +202,12 @@ export const drizzleDemoStore: DemoStore = {
     const [row] = await db.select({ account: users.bufferAccountId }).from(users).where(eq(users.id, userId)).limit(1);
     return row?.account.startsWith(ACCOUNT_PREFIX) ? row.account.slice(ACCOUNT_PREFIX.length) : null;
   },
-  async incrementAiCalls(sessionId) {
+  async aiSpendUsd(userId) {
     const [row] = await db
-      .update(demoSessions)
-      .set({ aiCalls: sql`${demoSessions.aiCalls} + 1` })
-      .where(eq(demoSessions.id, sessionId))
-      .returning({ aiCalls: demoSessions.aiCalls });
-    // A missing session row means it was cleaned up: treat the budget as spent.
-    return row?.aiCalls ?? Number.POSITIVE_INFINITY;
+      .select({ spent: sql<string>`coalesce(sum(${aiUsage.costUsd}), 0)` })
+      .from(aiUsage)
+      .where(eq(aiUsage.userId, userId));
+    return Number(row?.spent ?? 0);
   },
   async expiredSessions(before) {
     const rows = await db.select({ id: demoSessions.id }).from(demoSessions).where(lt(demoSessions.createdAt, before));

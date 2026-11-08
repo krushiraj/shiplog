@@ -129,7 +129,12 @@ export async function learnFromEdit(draftId: string, deps: LearnDeps = {}): Prom
     try {
       await chargeAi(draft.userId);
       const prompt = ruleProposalPrompt({ before, after, signals: diffSignals(before, after) });
-      proposals = (await callJson(RuleProposalsSchema, { ...prompt, maxTokens: 400, effort: "low" })).data.proposals;
+      proposals = (await callJson(RuleProposalsSchema, {
+        ...prompt,
+        maxTokens: 400,
+        effort: "low",
+        meta: { purpose: "rule-proposal", userId: draft.userId, projectId: draft.projectId, refType: "draft", refId: draft.id },
+      })).data.proposals;
     } catch {
       continue;
     }

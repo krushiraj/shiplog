@@ -15,6 +15,20 @@
       "when": 1794146588677,
       "tag": "0001_faithful_millenium_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794149278151,
+      "tag": "0002_pink_wolverine",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794149729393,
+      "tag": "0003_uneven_shiver_man",
+      "breakpoints": true
     }
   ]
 }

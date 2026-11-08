@@ -76,6 +76,11 @@ describe("compose", () => {
     expect(res.voiceScore.linkedin).toBeCloseTo(0.7);
     expect(res.suggestions.linkedin).toEqual(["shorter"]);
 
+    expect(callJson.mock.calls[0][1]).toMatchObject({ meta: { purpose: "compose", refType: "draft", userId: expect.any(String), projectId: "p1" } });
+    expect(callJson.mock.calls[1][1]).toMatchObject({ meta: { purpose: "voice-check", refType: "draft" } });
+    const refId = (callJson.mock.calls[0][1] as { meta: { refId: string } }).meta.refId;
+    expect(inserted[0].id).toBe(refId);
+
     const composeArgs = callJson.mock.calls[0][1] as { system: string };
     expect(composeArgs.system).toContain("project-level");
     expect(composeArgs.system).not.toContain("user-level");
@@ -107,7 +112,8 @@ describe("compose", () => {
       .mockResolvedValueOnce({ data: { variants: { x: "Short and sweet" }, themes: [] }, usage })
       .mockResolvedValueOnce({ data: { scores: { x: 0, linkedin: 0 }, suggestions: {} }, usage });
 
-    const res = await compose("p1", ["c1"], "digest", { nudge: "mention the cron" }, { store, callJson });
+    const res = await compose("p1", ["c1"], "digest", { nudge: "mention the cron", purpose: "regenerate" }, { store, callJson });
+    expect(callJson.mock.calls[0][1]).toMatchObject({ meta: { purpose: "regenerate" } });
 
     expect(res.variants.linkedin).toMatch(/^Today in Shiplog:/);
     expect((callJson.mock.calls[0][1] as { user: string }).user).toContain("mention the cron");

@@ -1,6 +1,7 @@
 import { and, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { changeCards, drafts, events, projectRepos, projects, users } from "@/db/schema";
+import { aiUsage, changeCards, drafts, events, projectRepos, projects, users } from "@/db/schema";
+import { utcDayStart } from "@/lib/ai/budget";
 import { maybeAutoPublish } from "@/lib/autopost";
 import { compose as realCompose } from "@/lib/compose";
 import { parseDuration, resolveConfig, type PartialConfig } from "@/lib/config";
@@ -44,17 +45,19 @@ export type TickDeps = {
   analyse?: (limit: number) => Promise<unknown>;
   compose?: (projectId: string, cardIds: string[], trigger: string) => Promise<{ draftId: string }>;
   autoPublish?: (draftId: string) => Promise<unknown>;
+  /** Total AI spend (all users) since `since`. */
+  aiCostSince?: (since: Date) => Promise<number>;
   now?: () => Date;
 };
 
-export type TickSummary = { claimed: string[]; drafts: string[]; expired: number; errors: string[] };
+export type TickSummary = { claimed: string[]; drafts: string[]; expired: number; errors: string[]; aiCostTodayUsd: number | null };
 
 export async function runTick(deps: TickDeps = {}): Promise<TickSummary> {
   const store = deps.store ?? drizzleTickStore;
   const compose = deps.compose ?? ((p, c, t) => realCompose(p, c, t));
   const autoPublish = deps.autoPublish ?? ((id) => maybeAutoPublish(id));
   const now = (deps.now ?? (() => new Date()))();
-  const summary: TickSummary = { claimed: [], drafts: [], expired: 0, errors: [] };
+  const summary: TickSummary = { claimed: [], drafts: [], expired: 0, errors: [], aiCostTodayUsd: null };
 
   if (deps.analyse) {
     try {
@@ -104,7 +107,21 @@ export async function runTick(deps: TickDeps = {}): Promise<TickSummary> {
       summary.errors.push(`${id}: ${(e as Error).message}`);
     }
   }
+
+  try {
+    summary.aiCostTodayUsd = await (deps.aiCostSince ?? aiCostSince)(utcDayStart(now));
+  } catch (e) {
+    console.warn("Could not total today's AI cost", e);
+  }
   return summary;
+}
+
+async function aiCostSince(since: Date): Promise<number> {
+  const [row] = await db
+    .select({ total: sql<string>`coalesce(sum(${aiUsage.costUsd}), 0)` })
+    .from(aiUsage)
+    .where(gte(aiUsage.createdAt, since));
+  return Number(row?.total ?? 0);
 }
 
 const cardColumns = {

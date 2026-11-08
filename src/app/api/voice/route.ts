@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { AiBudgetError } from "@/lib/ai/budget";
 import { BudgetError, RateLimitError } from "@/lib/buffer/client";
 import { getSessionUserId } from "@/lib/session";
 import { extractVoice, VoiceInputError } from "@/lib/voice/extract";
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
     try {
       return NextResponse.json(await autoLearnVoice(userId));
     } catch (e) {
+      if (e instanceof AiBudgetError) return NextResponse.json({ error: e.message }, { status: 429 });
       if (e instanceof BudgetError || e instanceof RateLimitError) {
         return NextResponse.json({ error: `Buffer is busy right now. Try again in ${e.retryAfter}s, or paste a few posts instead.` }, { status: 429 });
       }
@@ -27,6 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ profiles });
   } catch (e) {
     if (e instanceof VoiceInputError) return NextResponse.json({ error: e.message }, { status: 400 });
+    if (e instanceof AiBudgetError) return NextResponse.json({ error: e.message }, { status: 429 });
     console.error("Voice extraction failed", e);
     return NextResponse.json({ error: "Could not learn your writing style. Try again or start from a preset." }, { status: 500 });
   }

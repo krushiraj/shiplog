@@ -4,6 +4,7 @@ import { db as defaultDb, type Db } from "@/db";
 import { githubInstallations, projectRepos, projects, users, type CachedChannel } from "@/db/schema";
 import { callJson } from "./ai/claude";
 import { buildBrief, drizzleBriefStore, type BriefStep } from "./brief";
+import { persistedStep, type BriefBuildStatus } from "./brief/status";
 import { ProjectConfigSchema, resolveConfig, type PartialConfig, type ProjectConfig } from "./config";
 import { installationOctokit } from "./github/app";
 import { listInstallationRepos, type InstallationRepo } from "./github/repos";
@@ -154,11 +155,12 @@ export async function getOwnedProject(userId: string, projectId: string, databas
   return project ?? null;
 }
 
-// Progress lives in memory, so it is only visible on the instance running the build; the UI falls back to `brief`.
+// In-memory progress is only visible on the instance running the build; other instances read `projects.brief_status`.
 export type BriefStatus = BriefStep | "Failed";
 const briefStatus = new Map<string, BriefStatus>();
 
-export const getBriefStatus = (projectId: string): BriefStatus | null => briefStatus.get(projectId) ?? null;
+export const getBriefStatus = (projectId: string, persisted?: Partial<BriefBuildStatus> | null): BriefStatus | null =>
+  briefStatus.get(projectId) ?? (persistedStep(persisted) as BriefStatus | null);
 
 export async function runBrief(projectId: string): Promise<void> {
   briefStatus.set(projectId, "Reading README");

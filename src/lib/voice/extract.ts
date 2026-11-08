@@ -114,7 +114,7 @@ export async function extractVoice(userId: string, raw: VoiceInput, deps: VoiceD
     const entries = await Promise.all(
       registers.map(async (register) => {
         const prompt = voiceExtractPrompt({ samples, register, interview });
-        const { data } = await deps.callJson(VoiceDnaSchema, { ...prompt, maxTokens: 2000 });
+        const { data } = await deps.callJson(VoiceDnaSchema, { ...prompt, maxTokens: 2000, meta: { purpose: "voice-extract", userId } });
         return [register, data] as const;
       }),
     );

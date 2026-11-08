@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, jsonb, boolean, uuid, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, jsonb, boolean, uuid, uniqueIndex, primaryKey, numeric, index } from "drizzle-orm/pg-core";
 
 export type CachedChannel = {
   id: string;
@@ -50,6 +50,7 @@ export const projects = pgTable("projects", {
   name: text("name").notNull(),
   config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
   brief: jsonb("brief").$type<Record<string, unknown>>(),
+  briefStatus: jsonb("brief_status").$type<Record<string, unknown>>(), // see BriefBuildStatus in lib/brief/status
   lastDigestAt: timestamp("last_digest_at"),
   claimedUntil: timestamp("claimed_until"), // scheduler row lock
   paused: boolean("paused").notNull().default(false),
@@ -147,3 +148,43 @@ export const demoSessions = pgTable("demo_sessions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   aiCalls: integer("ai_calls").notNull().default(0),
 });
+
+/** One row per AI call (including skipped and failed ones), kept for cost history and estimate tuning. */
+export const aiUsage = pgTable("ai_usage", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  projectId: uuid("project_id"), // no FK: history outlives deleted projects
+  projectName: text("project_name"),
+  purpose: text("purpose").notNull(), // analyse|brief-files|brief|compose|voice-check|voice-extract|rule-proposal|regenerate|other
+  model: text("model").notNull(),
+  refType: text("ref_type"), // event | draft | card | project
+  refId: text("ref_id"),
+  estInputTokens: integer("est_input_tokens").notNull().default(0),
+  estOutputTokens: integer("est_output_tokens").notNull().default(0),
+  estCostUsd: numeric("est_cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
+  cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+  costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  cacheSavingsUsd: numeric("cache_savings_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  latencyMs: integer("latency_ms").notNull().default(0),
+  attempts: integer("attempts").notNull().default(0),
+  status: text("status").notNull(), // ok|retried|format_error|refused|error|skipped_budget
+  errorMessage: text("error_message"),
+  isDemo: boolean("is_demo").notNull().default(false),
+}, (t) => [
+  index("ai_usage_user_created").on(t.userId, t.createdAt),
+  index("ai_usage_project_created").on(t.projectId, t.createdAt),
+]);
+
+/** File summaries for the project brief, keyed by blob SHA so a rebuild only re-summarises changed files. */
+export const fileSummaries = pgTable("file_summaries", {
+  repoFullName: text("repo_full_name").notNull(),
+  path: text("path").notNull(),
+  blobSha: text("blob_sha").notNull(),
+  summary: text("summary").notNull(),
+  model: text("model").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.repoFullName, t.path, t.blobSha] })]);

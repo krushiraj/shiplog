@@ -57,6 +57,7 @@ describe("extractVoice", () => {
     const result = await extractVoice("u1", { samples: ["post one", "post two"] }, deps);
     expect(callJson).toHaveBeenCalledTimes(2);
     expect(callJson.mock.calls[0][0]).toBe(VoiceDnaSchema);
+    expect(callJson.mock.calls[0][1]).toMatchObject({ meta: { purpose: "voice-extract", userId: "u1" } });
     expect(result).toEqual({ linkedin: dna("long"), "x-short": dna("short") });
     expect(saved.map((s) => [s.userId, s.register])).toEqual([
       ["u1", "linkedin"],

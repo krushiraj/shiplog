@@ -15,7 +15,7 @@ async function load(ctx: Ctx) {
 export async function GET(_req: NextRequest, ctx: Ctx) {
   const { project, error } = await load(ctx);
   if (error) return error;
-  const step = getBriefStatus(project.id);
+  const step = getBriefStatus(project.id, project.briefStatus);
   const running = step !== null && step !== "Done" && step !== "Failed";
   return NextResponse.json({
     brief: project.brief,

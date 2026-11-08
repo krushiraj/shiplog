@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { changeCards, drafts, projects, users, voiceProfiles, voiceRules, type CachedChannel } from "@/db/schema";
@@ -46,6 +47,7 @@ export type DraftGate = {
 };
 
 export type NewDraft = {
+  id: string;
   projectId: string;
   trigger: string;
   cardIds: string[];
@@ -59,7 +61,7 @@ export interface ComposeStore {
   insertDraft(draft: NewDraft): Promise<string>;
 }
 
-export type ComposeDeps = { store?: ComposeStore; callJson?: typeof realCallJson };
+export type ComposeDeps = { store?: ComposeStore; callJson?: typeof realCallJson; newId?: () => string };
 
 export type ComposeResult = {
   draftId: string;
@@ -86,7 +88,7 @@ export async function compose(
   projectId: string,
   cardIds: string[],
   trigger: string,
-  opts: { nudge?: string | null } = {},
+  opts: { nudge?: string | null; purpose?: "compose" | "regenerate" } = {},
   deps: ComposeDeps = {},
 ): Promise<ComposeResult> {
   const store = deps.store ?? drizzleComposeStore;
@@ -111,6 +113,17 @@ export async function compose(
   const repo = ctx.cards[0]?.repoFullName;
   const link = config.posting.link !== "none" && repo ? `https://github.com/${displayRepo(repo)}` : null;
 
+  // The id is chosen up front so usage rows can point at the draft before it is stored.
+  const newDraftId = (deps.newId ?? randomUUID)();
+  const meta = {
+    userId: ctx.project.userId,
+    projectId: ctx.project.id,
+    projectName: ctx.project.name,
+    isDemo: ctx.project.isDemo,
+    refType: "draft" as const,
+    refId: newDraftId,
+  };
+
   let usage = ZERO;
   let themes: string[] = [];
   let aiVariants: Record<string, string> = {};
@@ -127,7 +140,7 @@ export async function compose(
       hashtags: config.posting.hashtags,
       link,
     });
-    const res = await callJson(ComposeSchema, { ...prompt, maxTokens: 2000, cacheSystem: true });
+    const res = await callJson(ComposeSchema, { ...prompt, maxTokens: 2000, cacheSystem: true, meta: { ...meta, purpose: opts.purpose ?? "compose" } });
     usage = addUsage(usage, res.usage);
     aiVariants = res.data.variants;
     themes = res.data.themes;
@@ -150,7 +163,7 @@ export async function compose(
   if (!fallback && specs.length) {
     try {
       const voice = Object.fromEntries(specs.map((s) => [s.key, dna[s.register] ?? {}]));
-      const res = await callJson(VoiceCheckSchema, { ...voiceCheckPrompt({ drafts: variants, voice }), maxTokens: 600, effort: "low" });
+      const res = await callJson(VoiceCheckSchema, { ...voiceCheckPrompt({ drafts: variants, voice }), maxTokens: 600, effort: "low", meta: { ...meta, purpose: "voice-check" } });
       usage = addUsage(usage, res.usage);
       // The model scores drift (0 = sounds like the author); we store similarity so higher is better.
       voiceScore = Object.fromEntries(Object.entries(res.data.scores).map(([k, drift]) => [k, 1 - drift]));
@@ -167,7 +180,7 @@ export async function compose(
     fallback,
     usage,
   };
-  const draftId = await store.insertDraft({ projectId, trigger, cardIds, variants, gate: draftGate, status: "pending" });
+  const draftId = await store.insertDraft({ id: newDraftId, projectId, trigger, cardIds, variants, gate: draftGate, status: "pending" });
   return { draftId, variants, gate: gates, voiceScore, suggestions };
 }
 

@@ -43,7 +43,9 @@ function diffTexts(draft: Draft, texts: Record<string, string>) {
 }
 
 async function recompose(userId: string, draft: Draft, nudge?: string) {
-  const { draftId } = await withDemoBudget(userId, () => compose(draft.projectId, draft.cardIds, draft.trigger, { nudge: nudge || null }));
+  const { draftId } = await withDemoBudget(userId, () =>
+    compose(draft.projectId, draft.cardIds, draft.trigger, { nudge: nudge || null, purpose: "regenerate" }),
+  );
   await db.update(drafts).set({ status: "rejected", rejectReason: `superseded by ${draftId}` }).where(eq(drafts.id, draft.id));
   return draftId;
 }

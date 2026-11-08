@@ -26,6 +26,10 @@ export type RepoProject = {
   projectConfig: PartialConfig;
   overrides: PartialConfig;
   brief: Record<string, unknown> | null;
+  projectId?: string;
+  projectName?: string;
+  userId?: string;
+  isDemo?: boolean;
 };
 
 export type CardRow = typeof changeCards.$inferInsert & { significance: number; what: string };
@@ -59,6 +63,10 @@ export function drizzleAnalyseStore(database: Db = defaultDb): AnalyseStore {
           projectConfig: projects.config,
           brief: projects.brief,
           userDefaults: users.defaults,
+          projectId: projects.id,
+          projectName: projects.name,
+          userId: projects.userId,
+          isDemo: projects.isDemo,
         })
         .from(projectRepos)
         .innerJoin(projects, eq(projects.id, projectRepos.projectId))
@@ -244,7 +252,18 @@ export async function analyseEvent(eventId: string, deps: AnalyseDeps = defaultD
   let card: CardRow;
   try {
     const prompt = analysePrompt({ brief, event: scrubEvent(ctx.event), files, readDiffs });
-    const { data } = await deps.callJson(ChangeCardSchema, { ...prompt, maxTokens: 1024, cacheSystem: true });
+    // A repo can feed several projects; the first one's owner pays for the shared card.
+    const owner = repoProjects[0];
+    const meta = {
+      purpose: "analyse" as const,
+      refType: "event" as const,
+      refId: e.id,
+      userId: owner.userId,
+      projectId: owner.projectId,
+      projectName: owner.projectName,
+      isDemo: owner.isDemo,
+    };
+    const { data } = await deps.callJson(ChangeCardSchema, { ...prompt, maxTokens: 1024, cacheSystem: true, meta });
     card = {
       ...base,
       what: data.what,

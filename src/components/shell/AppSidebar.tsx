@@ -14,6 +14,7 @@ import {
   RiInbox2Line,
   RiLogoutBoxRLine,
   RiMenuLine,
+  RiMoneyDollarCircleLine,
   RiAddLine,
   RiSettings4Line,
   RiSideBarFill,
@@ -37,6 +38,7 @@ type IconComponent = ComponentType<{ className?: string; "aria-hidden"?: boolean
 export type NavEntry = { href: string; label: string; icon: IconComponent; badge?: number };
 export type SidebarProject = { id: string; name: string; repoCount: number; paused?: boolean };
 export type SidebarAccount = { name: string; email: string; initials: string; avatarUrl?: string };
+export type SidebarAiSpend = { spentUsd: number; limitUsd: number; scope: "today" | "demo" };
 
 function buildNav(inboxCount: number): NavEntry[] {
   return [
@@ -44,6 +46,7 @@ function buildNav(inboxCount: number): NavEntry[] {
     { href: "/timeline", label: "Timeline", icon: RiHistoryLine },
     { href: "/projects", label: "Projects", icon: RiFolder3Line },
     { href: "/memory", label: "Memory", icon: RiBrainLine },
+    { href: "/usage", label: "Usage", icon: RiMoneyDollarCircleLine },
     { href: "/settings", label: "Settings", icon: RiSettings4Line },
   ];
 }
@@ -200,12 +203,14 @@ export type AppSidebarProps = {
   account: SidebarAccount;
   onProjectChange?: (id: string) => void;
   onSignOut?: () => void;
+  /** AI spend against the budget, shown above the account footer. */
+  aiSpend?: SidebarAiSpend;
   mobile?: boolean;
   onClose?: () => void;
 };
 
 /** Shiplog app navigation, adapted from BoardUI's floating dashboard Sidebar. */
-export function AppSidebar({ inboxCount, projects, currentProjectId, account, onProjectChange, onSignOut, mobile = false, onClose }: AppSidebarProps) {
+export function AppSidebar({ inboxCount, projects, currentProjectId, account, onProjectChange, onSignOut, aiSpend, mobile = false, onClose }: AppSidebarProps) {
   const pathname = usePathname();
   const [collapsedState, setCollapsed] = useState(false);
   const collapsed = mobile ? false : collapsedState;
@@ -257,6 +262,11 @@ export function AppSidebar({ inboxCount, projects, currentProjectId, account, on
       </div>
 
       <div className="flex flex-col gap-3">
+        {aiSpend && !collapsed && (
+          <Link href="/usage" className="rounded-lg px-2 text-caption-1-medium tabular-nums text-text-tertiary hover:text-text-secondary">
+            {aiSpend.scope === "demo" ? "Demo AI" : "Today"}: ${aiSpend.spentUsd.toFixed(2)} of ${aiSpend.limitUsd.toFixed(2)}
+          </Link>
+        )}
         {collapsed ? <ThemeToggle collapsed /> : <ThemeToggle appearance="sidebar-segmented" />}
         <AccountFooter account={account} collapsed={collapsed} onSignOut={onSignOut} />
       </div>

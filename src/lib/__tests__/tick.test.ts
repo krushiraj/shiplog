@@ -58,6 +58,14 @@ function makeStore(opts: { cards?: TickCard[]; drafts?: FakeDraft[]; projectConf
 }
 
 describe("runTick", () => {
+  it("reports today's total AI cost from midnight UTC", async () => {
+    const { deps } = makeStore({ cards: [] });
+    const aiCostSince = vi.fn(async () => 0.4213);
+    const summary = await runTick({ ...deps, aiCostSince });
+    expect(aiCostSince).toHaveBeenCalledWith(new Date(Date.UTC(NOW.getUTCFullYear(), NOW.getUTCMonth(), NOW.getUTCDate())));
+    expect(summary.aiCostTodayUsd).toBe(0.4213);
+  });
+
   it("analyses pending events, then composes a digest and hands it to auto-publish", async () => {
     const { deps, compose, autoPublish, analyse, project } = makeStore({ cards: [card("c1", 2), card("c2", 1)] });
 

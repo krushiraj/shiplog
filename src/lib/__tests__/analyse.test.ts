@@ -25,7 +25,7 @@ function memoryStore(m: Memory): AnalyseStore {
   return {
     getEvent: async (id) => m.events.find((e) => e.id === id) ?? null,
     projectsForRepo: async () => [
-      { installationId: 1, userDefaults: {}, projectConfig: m.projectConfig, overrides: {}, brief: null },
+      { installationId: 1, userDefaults: {}, projectConfig: m.projectConfig, overrides: {}, brief: null, projectId: "p1", projectName: "App", userId: "u1", isDemo: false },
     ],
     findPrForCommit: async (repo, sha, prNumber) => {
       const pr = m.events.find(
@@ -104,6 +104,14 @@ describe("analyseEvent", () => {
     expect(text).toContain("scoreWeight");
     expect(text).not.toContain("lock noise");
     expect(mem.processed).toEqual(["e1"]);
+  });
+
+  it("tags the AI call with the analyse purpose, the event and the owning project", async () => {
+    const { ai, deps } = setup();
+    await analyseEvent("e1", deps);
+    expect(ai.mock.calls[0][1]).toMatchObject({
+      meta: { purpose: "analyse", refType: "event", refId: "e1", userId: "u1", projectId: "p1", projectName: "App", isDemo: false },
+    });
   });
 
   it("sends metadata only when read_diffs is false", async () => {

@@ -79,6 +79,7 @@ describe("learnFromEdit", () => {
     const learned = await learnFromEdit("d1", { store, callJson, chargeAi, now: () => NOW });
 
     expect(callJson).toHaveBeenCalledTimes(1);
+    expect(callJson.mock.calls[0][1]).toMatchObject({ meta: { purpose: "rule-proposal", refType: "draft", refId: "d1" } });
     const prompt = callJson.mock.calls[0][1] as { user: string };
     expect(prompt.user).toContain("Super excited to share");
     expect(learned).toEqual([expect.objectContaining({ kind: "never", rule: "Super excited", active: false, sightings: 1, register: "x-short" })]);

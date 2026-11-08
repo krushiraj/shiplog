@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
-  DEMO_AI_LIMIT,
+  DEMO_SESSION_BUDGET_USD,
   DemoLimitError,
   buildDemoSeed,
   chargeDemoAi,
@@ -19,19 +19,19 @@ const HOUR = 3_600_000;
 
 function fakeStore() {
   const seeds: DemoSeed[] = [];
-  const sessions = new Map<string, { createdAt: Date; aiCalls: number }>();
+  const sessions = new Map<string, { createdAt: Date }>();
+  const spend = new Map<string, number>();
   const store: DemoStore = {
     async insertSeed(seed) {
       seeds.push(seed);
-      sessions.set(seed.session.id, { createdAt: seed.session.createdAt, aiCalls: 0 });
+      sessions.set(seed.session.id, { createdAt: seed.session.createdAt });
     },
     async sessionIdForUser(userId) {
       const seed = seeds.find((s) => s.user.id === userId);
       return seed && sessions.has(seed.session.id) ? seed.session.id : null;
     },
-    async incrementAiCalls(sessionId) {
-      const s = sessions.get(sessionId)!;
-      return ++s.aiCalls;
+    async aiSpendUsd(userId) {
+      return spend.get(userId) ?? 0;
     },
     async expiredSessions(before) {
       return [...sessions].filter(([, s]) => s.createdAt < before).map(([id]) => id);
@@ -42,7 +42,7 @@ function fakeStore() {
   };
   let n = 0;
   const newId = () => `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`;
-  return { store, seeds, sessions, deps: { store, newId, now: () => NOW } };
+  return { store, seeds, sessions, spend, deps: { store, newId, now: () => NOW } };
 }
 
 describe("buildDemoSeed", () => {
@@ -124,26 +124,28 @@ describe("createDemoUser", () => {
 });
 
 describe("demo AI budget", () => {
-  it(`allows ${DEMO_AI_LIMIT} AI calls per session, then throws DemoLimitError`, async () => {
-    const { deps } = fakeStore();
+  it(`allows AI until the session has spent $${DEMO_SESSION_BUDGET_USD}, then throws DemoLimitError`, async () => {
+    const { deps, spend } = fakeStore();
     const { userId } = await createDemoUser(deps);
-    for (let i = 0; i < DEMO_AI_LIMIT; i++) await chargeDemoAi(userId, deps);
+    spend.set(userId, DEMO_SESSION_BUDGET_USD - 0.01);
+    await chargeDemoAi(userId, deps);
+    spend.set(userId, DEMO_SESSION_BUDGET_USD);
     await expect(chargeDemoAi(userId, deps)).rejects.toBeInstanceOf(DemoLimitError);
   });
 
   it("does nothing for real users", async () => {
     const { deps, store } = fakeStore();
-    const spy = vi.spyOn(store, "incrementAiCalls");
-    for (let i = 0; i < DEMO_AI_LIMIT + 5; i++) await chargeDemoAi("real-user", deps);
+    const spy = vi.spyOn(store, "aiSpendUsd");
+    await chargeDemoAi("real-user", deps);
     expect(spy).not.toHaveBeenCalled();
   });
 
   it("withDemoBudget runs the call within budget and skips it past the limit", async () => {
-    const { deps, sessions, seeds } = fakeStore();
+    const { deps, spend } = fakeStore();
     const { userId } = await createDemoUser(deps);
     const fn = vi.fn(async () => "ok");
     expect(await withDemoBudget(userId, fn, deps)).toBe("ok");
-    sessions.get(seeds[0].session.id)!.aiCalls = DEMO_AI_LIMIT;
+    spend.set(userId, 1);
     await expect(withDemoBudget(userId, fn, deps)).rejects.toBeInstanceOf(DemoLimitError);
     expect(fn).toHaveBeenCalledTimes(1);
   });
