@@ -1,0 +1,106 @@
+{
+  "action": "closed",
+  "issue": {
+    "url": "https://api.github.com/repos/krushiraj/shiplog/issues/10",
+    "repository_url": "https://api.github.com/repos/krushiraj/shiplog",
+    "html_url": "https://github.com/krushiraj/shiplog/issues/10",
+    "id": 2601234568,
+    "node_id": "I_kwDONSi9B86bC1xH",
+    "number": 10,
+    "title": "Support Mastodon directly",
+    "user": {
+      "login": "krushiraj",
+      "id": 21986398,
+      "node_id": "MDQ6VXNlcjIxOTg2Mzk4",
+      "avatar_url": "https://avatars.githubusercontent.com/u/21986398?v=4",
+      "html_url": "https://github.com/krushiraj",
+      "type": "User",
+      "site_admin": false
+    },
+    "labels": [
+      {
+        "id": 7712345603,
+        "node_id": "LA_kwDONSi9B88AAAAB7712345603",
+        "url": "https://api.github.com/repos/krushiraj/shiplog/labels/enhancement",
+        "name": "enhancement",
+        "color": "a2eeef",
+        "default": false,
+        "description": "New feature or request"
+      }
+    ],
+    "state": "closed",
+    "locked": false,
+    "assignee": null,
+    "assignees": [],
+    "milestone": null,
+    "comments": 2,
+    "created_at": "2026-11-05T08:00:00Z",
+    "updated_at": "2026-11-08T09:15:43Z",
+    "closed_at": "2026-11-08T09:15:43Z",
+    "author_association": "OWNER",
+    "active_lock_reason": null,
+    "body": "Skip Buffer and post to Mastodon.",
+    "reactions": {
+      "url": "https://api.github.com/repos/krushiraj/shiplog/issues/9/reactions",
+      "total_count": 0,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 0,
+      "eyes": 0
+    },
+    "state_reason": "not_planned"
+  },
+  "repository": {
+    "id": 891234567,
+    "node_id": "R_kgDONSi9Bw",
+    "name": "shiplog",
+    "full_name": "krushiraj/shiplog",
+    "private": false,
+    "owner": {
+      "login": "krushiraj",
+      "id": 21986398,
+      "node_id": "MDQ6VXNlcjIxOTg2Mzk4",
+      "avatar_url": "https://avatars.githubusercontent.com/u/21986398?v=4",
+      "html_url": "https://github.com/krushiraj",
+      "type": "User",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/krushiraj/shiplog",
+    "description": "Turn every change into a build-in-public post",
+    "fork": false,
+    "url": "https://api.github.com/repos/krushiraj/shiplog",
+    "created_at": "2026-11-01T09:12:44Z",
+    "updated_at": "2026-11-08T10:02:11Z",
+    "pushed_at": "2026-11-08T10:02:10Z",
+    "clone_url": "https://github.com/krushiraj/shiplog.git",
+    "homepage": null,
+    "size": 412,
+    "stargazers_count": 3,
+    "watchers_count": 3,
+    "language": "TypeScript",
+    "forks_count": 0,
+    "archived": false,
+    "disabled": false,
+    "open_issues_count": 2,
+    "topics": [],
+    "visibility": "public",
+    "default_branch": "main"
+  },
+  "sender": {
+    "login": "krushiraj",
+    "id": 21986398,
+    "node_id": "MDQ6VXNlcjIxOTg2Mzk4",
+    "avatar_url": "https://avatars.githubusercontent.com/u/21986398?v=4",
+    "html_url": "https://github.com/krushiraj",
+    "type": "User",
+    "site_admin": false
+  },
+  "installation": {
+    "id": 57123456,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uNTcxMjM0NTY="
+  }
+}

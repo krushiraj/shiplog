@@ -1,0 +1,160 @@
+{
+  "ref": "refs/heads/main",
+  "before": "0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6",
+  "after": "c3d4e5f60718293a4b5c6d7e8f90123456789012",
+  "repository": {
+    "id": 891234567,
+    "node_id": "R_kgDONSi9Bw",
+    "name": "shiplog",
+    "full_name": "krushiraj/shiplog",
+    "private": false,
+    "owner": {
+      "login": "krushiraj",
+      "id": 21986398,
+      "node_id": "MDQ6VXNlcjIxOTg2Mzk4",
+      "avatar_url": "https://avatars.githubusercontent.com/u/21986398?v=4",
+      "html_url": "https://github.com/krushiraj",
+      "type": "User",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/krushiraj/shiplog",
+    "description": "Turn every change into a build-in-public post",
+    "fork": false,
+    "url": "https://api.github.com/repos/krushiraj/shiplog",
+    "created_at": 1730452364,
+    "updated_at": "2026-11-08T10:02:11Z",
+    "pushed_at": 1731060130,
+    "clone_url": "https://github.com/krushiraj/shiplog.git",
+    "homepage": null,
+    "size": 412,
+    "stargazers_count": 3,
+    "watchers_count": 3,
+    "language": "TypeScript",
+    "forks_count": 0,
+    "archived": false,
+    "disabled": false,
+    "open_issues_count": 2,
+    "topics": [],
+    "visibility": "public",
+    "default_branch": "main",
+    "master_branch": "main"
+  },
+  "pusher": {
+    "name": "krushiraj",
+    "email": "krushiraj123@gmail.com"
+  },
+  "sender": {
+    "login": "krushiraj",
+    "id": 21986398,
+    "node_id": "MDQ6VXNlcjIxOTg2Mzk4",
+    "avatar_url": "https://avatars.githubusercontent.com/u/21986398?v=4",
+    "html_url": "https://github.com/krushiraj",
+    "type": "User",
+    "site_admin": false
+  },
+  "installation": {
+    "id": 57123456,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uNTcxMjM0NTY="
+  },
+  "created": false,
+  "deleted": false,
+  "forced": false,
+  "base_ref": null,
+  "compare": "https://github.com/krushiraj/shiplog/compare/0f1e2d3c4b5a...c3d4e5f60718",
+  "commits": [
+    {
+      "id": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+      "tree_id": "8765432109f8e7d6c5b4a39281706f5e4d3c2b1a",
+      "distinct": true,
+      "message": "Add change card scoring\n\nScore each change 0-3 so only meaningful work becomes a post.",
+      "timestamp": "2026-11-08T15:30:12+05:30",
+      "url": "https://github.com/krushiraj/shiplog/commit/a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+      "author": {
+        "name": "Krushi Raj",
+        "email": "krushiraj123@gmail.com",
+        "username": "krushiraj"
+      },
+      "committer": {
+        "name": "Krushi Raj",
+        "email": "krushiraj123@gmail.com",
+        "username": "krushiraj"
+      },
+      "added": [
+        "src/lib/score.ts"
+      ],
+      "removed": [],
+      "modified": [
+        "src/lib/cards.ts"
+      ]
+    },
+    {
+      "id": "b2c3d4e5f60718293a4b5c6d7e8f901234567890",
+      "tree_id": "098765432109f8e7d6c5b4a39281706f5e4d3c2b",
+      "distinct": true,
+      "message": "Fix inbox empty state copy",
+      "timestamp": "2026-11-08T15:41:03+05:30",
+      "url": "https://github.com/krushiraj/shiplog/commit/b2c3d4e5f60718293a4b5c6d7e8f901234567890",
+      "author": {
+        "name": "Krushi Raj",
+        "email": "krushiraj123@gmail.com",
+        "username": "krushiraj"
+      },
+      "committer": {
+        "name": "Krushi Raj",
+        "email": "krushiraj123@gmail.com",
+        "username": "krushiraj"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/app/inbox/page.tsx"
+      ]
+    },
+    {
+      "id": "c3d4e5f60718293a4b5c6d7e8f90123456789012",
+      "tree_id": "21098765432109f8e7d6c5b4a39281706f5e4d3c",
+      "distinct": true,
+      "message": "Merge pull request #4 from krushiraj/feature-x\n\nFeature x",
+      "timestamp": "2026-11-08T15:44:57+05:30",
+      "url": "https://github.com/krushiraj/shiplog/commit/c3d4e5f60718293a4b5c6d7e8f90123456789012",
+      "author": {
+        "name": "Krushi Raj",
+        "email": "krushiraj123@gmail.com",
+        "username": "krushiraj"
+      },
+      "committer": {
+        "name": "Krushi Raj",
+        "email": "krushiraj123@gmail.com",
+        "username": "krushiraj"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "src/lib/score.ts"
+      ]
+    }
+  ],
+  "head_commit": {
+    "id": "c3d4e5f60718293a4b5c6d7e8f90123456789012",
+    "tree_id": "21098765432109f8e7d6c5b4a39281706f5e4d3c",
+    "distinct": true,
+    "message": "Merge pull request #4 from krushiraj/feature-x\n\nFeature x",
+    "timestamp": "2026-11-08T15:44:57+05:30",
+    "url": "https://github.com/krushiraj/shiplog/commit/c3d4e5f60718293a4b5c6d7e8f90123456789012",
+    "author": {
+      "name": "Krushi Raj",
+      "email": "krushiraj123@gmail.com",
+      "username": "krushiraj"
+    },
+    "committer": {
+      "name": "Krushi Raj",
+      "email": "krushiraj123@gmail.com",
+      "username": "krushiraj"
+    },
+    "added": [],
+    "removed": [],
+    "modified": [
+      "src/lib/score.ts"
+    ]
+  }
+}

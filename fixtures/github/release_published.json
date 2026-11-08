@@ -1,0 +1,82 @@
+{
+  "action": "published",
+  "release": {
+    "url": "https://api.github.com/repos/krushiraj/shiplog/releases/187654321",
+    "html_url": "https://github.com/krushiraj/shiplog/releases/tag/v0.2.0",
+    "assets_url": "https://api.github.com/repos/krushiraj/shiplog/releases/187654321/assets",
+    "upload_url": "https://uploads.github.com/repos/krushiraj/shiplog/releases/187654321/assets{?name,label}",
+    "tarball_url": "https://api.github.com/repos/krushiraj/shiplog/tarball/v0.2.0",
+    "zipball_url": "https://api.github.com/repos/krushiraj/shiplog/zipball/v0.2.0",
+    "id": 187654321,
+    "node_id": "RE_kwDONSi9B84LLtGx",
+    "tag_name": "v0.2.0",
+    "target_commitish": "main",
+    "name": "v0.2.0: voice rules",
+    "draft": false,
+    "prerelease": false,
+    "immutable": false,
+    "author": {
+      "login": "krushiraj",
+      "id": 21986398,
+      "node_id": "MDQ6VXNlcjIxOTg2Mzk4",
+      "avatar_url": "https://avatars.githubusercontent.com/u/21986398?v=4",
+      "html_url": "https://github.com/krushiraj",
+      "type": "User",
+      "site_admin": false
+    },
+    "created_at": "2026-11-08T11:00:02Z",
+    "published_at": "2026-11-08T11:02:30Z",
+    "updated_at": "2026-11-08T11:02:30Z",
+    "assets": [],
+    "body": "## What's new\n- Voice rules learned from your inbox edits\n- Change cards now carry a significance score"
+  },
+  "repository": {
+    "id": 891234567,
+    "node_id": "R_kgDONSi9Bw",
+    "name": "shiplog",
+    "full_name": "krushiraj/shiplog",
+    "private": false,
+    "owner": {
+      "login": "krushiraj",
+      "id": 21986398,
+      "node_id": "MDQ6VXNlcjIxOTg2Mzk4",
+      "avatar_url": "https://avatars.githubusercontent.com/u/21986398?v=4",
+      "html_url": "https://github.com/krushiraj",
+      "type": "User",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/krushiraj/shiplog",
+    "description": "Turn every change into a build-in-public post",
+    "fork": false,
+    "url": "https://api.github.com/repos/krushiraj/shiplog",
+    "created_at": "2026-11-01T09:12:44Z",
+    "updated_at": "2026-11-08T10:02:11Z",
+    "pushed_at": "2026-11-08T10:02:10Z",
+    "clone_url": "https://github.com/krushiraj/shiplog.git",
+    "homepage": null,
+    "size": 412,
+    "stargazers_count": 3,
+    "watchers_count": 3,
+    "language": "TypeScript",
+    "forks_count": 0,
+    "archived": false,
+    "disabled": false,
+    "open_issues_count": 2,
+    "topics": [],
+    "visibility": "public",
+    "default_branch": "main"
+  },
+  "sender": {
+    "login": "krushiraj",
+    "id": 21986398,
+    "node_id": "MDQ6VXNlcjIxOTg2Mzk4",
+    "avatar_url": "https://avatars.githubusercontent.com/u/21986398?v=4",
+    "html_url": "https://github.com/krushiraj",
+    "type": "User",
+    "site_admin": false
+  },
+  "installation": {
+    "id": 57123456,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uNTcxMjM0NTY="
+  }
+}

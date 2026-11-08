@@ -1,0 +1,112 @@
+{
+  "ref": "refs/heads/feature-x",
+  "before": "0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6",
+  "after": "d4e5f60718293a4b5c6d7e8f9012345678901234",
+  "repository": {
+    "id": 891234567,
+    "node_id": "R_kgDONSi9Bw",
+    "name": "shiplog",
+    "full_name": "krushiraj/shiplog",
+    "private": false,
+    "owner": {
+      "login": "krushiraj",
+      "id": 21986398,
+      "node_id": "MDQ6VXNlcjIxOTg2Mzk4",
+      "avatar_url": "https://avatars.githubusercontent.com/u/21986398?v=4",
+      "html_url": "https://github.com/krushiraj",
+      "type": "User",
+      "site_admin": false
+    },
+    "html_url": "https://github.com/krushiraj/shiplog",
+    "description": "Turn every change into a build-in-public post",
+    "fork": false,
+    "url": "https://api.github.com/repos/krushiraj/shiplog",
+    "created_at": 1730452364,
+    "updated_at": "2026-11-08T10:02:11Z",
+    "pushed_at": 1731060130,
+    "clone_url": "https://github.com/krushiraj/shiplog.git",
+    "homepage": null,
+    "size": 412,
+    "stargazers_count": 3,
+    "watchers_count": 3,
+    "language": "TypeScript",
+    "forks_count": 0,
+    "archived": false,
+    "disabled": false,
+    "open_issues_count": 2,
+    "topics": [],
+    "visibility": "public",
+    "default_branch": "main",
+    "master_branch": "main"
+  },
+  "pusher": {
+    "name": "krushiraj",
+    "email": "krushiraj123@gmail.com"
+  },
+  "sender": {
+    "login": "krushiraj",
+    "id": 21986398,
+    "node_id": "MDQ6VXNlcjIxOTg2Mzk4",
+    "avatar_url": "https://avatars.githubusercontent.com/u/21986398?v=4",
+    "html_url": "https://github.com/krushiraj",
+    "type": "User",
+    "site_admin": false
+  },
+  "installation": {
+    "id": 57123456,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uNTcxMjM0NTY="
+  },
+  "created": false,
+  "deleted": false,
+  "forced": false,
+  "base_ref": null,
+  "compare": "https://github.com/krushiraj/shiplog/compare/0f1e2d3c4b5a...c3d4e5f60718",
+  "commits": [
+    {
+      "id": "d4e5f60718293a4b5c6d7e8f9012345678901234",
+      "tree_id": "4321098765432109f8e7d6c5b4a39281706f5e4d",
+      "distinct": true,
+      "message": "WIP: feature x scaffolding",
+      "timestamp": "2026-11-08T14:02:19+05:30",
+      "url": "https://github.com/krushiraj/shiplog/commit/d4e5f60718293a4b5c6d7e8f9012345678901234",
+      "author": {
+        "name": "Krushi Raj",
+        "email": "krushiraj123@gmail.com",
+        "username": "krushiraj"
+      },
+      "committer": {
+        "name": "Krushi Raj",
+        "email": "krushiraj123@gmail.com",
+        "username": "krushiraj"
+      },
+      "added": [
+        "src/lib/featureX.ts"
+      ],
+      "removed": [],
+      "modified": []
+    }
+  ],
+  "head_commit": {
+    "id": "d4e5f60718293a4b5c6d7e8f9012345678901234",
+    "tree_id": "4321098765432109f8e7d6c5b4a39281706f5e4d",
+    "distinct": true,
+    "message": "WIP: feature x scaffolding",
+    "timestamp": "2026-11-08T14:02:19+05:30",
+    "url": "https://github.com/krushiraj/shiplog/commit/d4e5f60718293a4b5c6d7e8f9012345678901234",
+    "author": {
+      "name": "Krushi Raj",
+      "email": "krushiraj123@gmail.com",
+      "username": "krushiraj"
+    },
+    "committer": {
+      "name": "Krushi Raj",
+      "email": "krushiraj123@gmail.com",
+      "username": "krushiraj"
+    },
+    "added": [
+      "src/lib/featureX.ts"
+    ],
+    "removed": [],
+    "modified": []
+  }
+}
