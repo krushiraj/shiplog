@@ -86,4 +86,6 @@ export type BriefView = {
   glossary: { term: string; plain: string }[];
   architecture: { module: string; purpose: string }[];
   milestones: string[];
+  /** Author answers to open questions, appended over time. */
+  facts?: string[];
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { stringify } from "yaml";
 import {
   RiCodeLine,
@@ -17,16 +18,19 @@ import { SegmentedControl, SegmentedControlItem } from "@/components/base/segmen
 import { Select, SelectItem } from "@/components/base/select/select";
 import { SwitchCard } from "@/components/base/switch/switch-card";
 import { toast } from "@/components/base/toast/toast";
+import { sendJson } from "@/lib/client-api";
+import type { ProjectConfig } from "@/lib/config";
 import type { ChannelKey, ProjectView } from "@/lib/ui-types";
 
 export type ProjectSettings = {
   project: string;
   channels: ChannelKey[];
   timezone: string;
-  digestEvery: "1d" | "2d" | "weekly:Fri" | "off";
+  digestEvery: ProjectConfig["triggers"]["digest"]["every"];
   digestAt: string;
   reviewMode: "inbox" | "draft" | "auto";
   postingWhen: "now" | "next_best_slot" | "fixed";
+  postingAt: string;
   readDiffs: boolean;
   quoteCode: boolean;
   hashtags: string;
@@ -50,20 +54,73 @@ const CHANNEL_META: { key: ChannelKey; label: string; icon: typeof RiLinkedinFil
   { key: "threads", label: "Threads", icon: RiThreadsFill },
 ];
 
-export function SettingsView({ project, repos, onSave }: { project: ProjectView; repos: string[]; onSave?: (s: ProjectSettings) => void }) {
+export type AvailableChannel = { id: string; key: ChannelKey; name: string };
+
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export function SettingsView({
+  project,
+  repos,
+  config,
+  availableChannels,
+}: {
+  project: ProjectView;
+  repos: string[];
+  config: ProjectConfig;
+  availableChannels: AvailableChannel[];
+}) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const fixedAt = config.posting.when !== "now" && config.posting.when !== "next_best_slot" ? config.posting.when : null;
   const [s, setS] = useState<ProjectSettings>({
     project: project.name,
     channels: project.channels,
-    timezone: "Asia/Kolkata",
-    digestEvery: "1d",
-    digestAt: "18:30",
-    reviewMode: project.reviewMode,
-    postingWhen: "next_best_slot",
-    readDiffs: true,
-    quoteCode: false,
-    hashtags: "#BuildInPublic",
+    timezone: config.timezone,
+    digestEvery: config.triggers.digest.every,
+    digestAt: config.triggers.digest.at,
+    reviewMode: config.review.mode,
+    postingWhen: fixedAt ? "fixed" : (config.posting.when as "now" | "next_best_slot"),
+    postingAt: fixedAt ?? "09:00",
+    readDiffs: config.ai.read_diffs,
+    quoteCode: config.ai.quote_code,
+    hashtags: config.posting.hashtags.join(" "),
   });
   const set = <K extends keyof ProjectSettings>(k: K, v: ProjectSettings[K]) => setS((prev) => ({ ...prev, [k]: v }));
+
+  /** Buffer channel ids for the chosen keys: keep ids already configured, else take the first channel of that kind. */
+  const channelIds = () =>
+    s.channels.flatMap((key) => {
+      const ofKind = availableChannels.filter((c) => c.key === key);
+      const kept = ofKind.filter((c) => config.channels.includes(c.id)).map((c) => c.id);
+      return kept.length ? kept : ofKind.slice(0, 1).map((c) => c.id);
+    });
+
+  const save = async () => {
+    if (!TIME.test(s.digestAt) || (s.postingWhen === "fixed" && !TIME.test(s.postingAt))) {
+      toast.error("Times use 24-hour HH:MM, like 18:30");
+      return;
+    }
+    setSaving(true);
+    try {
+      await sendJson(`/api/projects/${project.id}/config`, "PUT", {
+        name: s.project,
+        config: {
+          timezone: s.timezone,
+          channels: channelIds(),
+          triggers: { digest: { every: s.digestEvery, at: s.digestAt } },
+          review: { mode: s.reviewMode },
+          posting: { when: s.postingWhen === "fixed" ? s.postingAt : s.postingWhen, hashtags: s.hashtags.split(/[\s,]+/).filter(Boolean) },
+          ai: { read_diffs: s.readDiffs, quote_code: s.quoteCode },
+        },
+      });
+      toast.success("Settings saved");
+      router.refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const yamlText = useMemo(
     () =>
@@ -74,7 +131,7 @@ export function SettingsView({ project, repos, onSave }: { project: ProjectView;
         timezone: s.timezone,
         triggers: { digest: { every: s.digestEvery, at: s.digestAt } },
         review: { mode: s.reviewMode },
-        posting: { when: s.postingWhen, hashtags: s.hashtags.split(/[\s,]+/).filter(Boolean) },
+        posting: { when: s.postingWhen === "fixed" ? s.postingAt : s.postingWhen, hashtags: s.hashtags.split(/[\s,]+/).filter(Boolean) },
         ai: { read_diffs: s.readDiffs, quote_code: s.quoteCode },
       }),
     [s, repos],
@@ -94,6 +151,8 @@ export function SettingsView({ project, repos, onSave }: { project: ProjectView;
               <SwitchCard
                 key={key}
                 title={label}
+                description={availableChannels.some((c) => c.key === key) ? undefined : "Connect it in Buffer first"}
+                isDisabled={!availableChannels.some((c) => c.key === key)}
                 icon={icon}
                 isSelected={s.channels.includes(key)}
                 onChange={(on) => set("channels", on ? [...s.channels, key] : s.channels.filter((c) => c !== key))}
@@ -109,6 +168,9 @@ export function SettingsView({ project, repos, onSave }: { project: ProjectView;
               <SelectItem id="1d">Every day</SelectItem>
               <SelectItem id="2d">Every 2 days</SelectItem>
               <SelectItem id="weekly:Fri">Weekly on Friday</SelectItem>
+              {s.digestEvery.startsWith("weekly:") && s.digestEvery !== "weekly:Fri" ? (
+                <SelectItem id={s.digestEvery}>Weekly on {s.digestEvery.slice(7)}</SelectItem>
+              ) : null}
               <SelectItem id="off">Off (releases only)</SelectItem>
             </Select>
             <Input label="Digest time" value={s.digestAt} onChange={(v) => set("digestAt", v)} />
@@ -142,6 +204,7 @@ export function SettingsView({ project, repos, onSave }: { project: ProjectView;
               <SegmentedControlItem id="now">Right away</SegmentedControlItem>
               <SegmentedControlItem id="fixed">Fixed time</SegmentedControlItem>
             </SegmentedControl>
+            {s.postingWhen === "fixed" && <Input label="Post at" value={s.postingAt} onChange={(v) => set("postingAt", v)} hint="24-hour HH:MM in the project timezone." />}
           </div>
         </Card>
 
@@ -166,7 +229,7 @@ export function SettingsView({ project, repos, onSave }: { project: ProjectView;
         </Card>
 
         <div className="flex justify-end">
-          <Button onClick={() => { onSave?.(s); toast.success("Settings saved"); }}>Save changes</Button>
+          <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>
         </div>
       </div>
 

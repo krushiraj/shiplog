@@ -1,25 +1,35 @@
 import Link from "next/link";
-import { RiAddLine, RiFireLine, RiGithubLine, RiLinkedinFill, RiThreadsFill, RiTwitterXFill } from "@remixicon/react";
+import { RiAddLine, RiFireLine, RiFolder3Line, RiGithubLine, RiLinkedinFill, RiThreadsFill, RiTwitterXFill } from "@remixicon/react";
 import { Chip } from "@/components/base/badges/chip";
 import { ButtonLink } from "@/components/base/buttons/button";
 import { PageHeader } from "@/components/shell/PageHeader";
-import { mockProjects } from "@/lib/mock";
+import { EmptyState } from "@/components/EmptyState";
+import { loadProjects, requireUserId } from "@/lib/views";
 
 const CHANNEL_ICON = { linkedin: RiLinkedinFill, x: RiTwitterXFill, threads: RiThreadsFill } as const;
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const projects = await loadProjects(await requireUserId());
   return (
     <div className="mx-auto w-full max-w-6xl">
       <PageHeader
         title="Projects"
         description="A project groups repos that tell one story, with its own channels and schedule."
-        actions={<ButtonLink href="/projects" leadingIcon={RiAddLine}>New project</ButtonLink>}
+        actions={<ButtonLink href="/onboarding/project" leadingIcon={RiAddLine}>New project</ButtonLink>}
       />
+      {projects.length === 0 && (
+        <EmptyState
+          icon={RiFolder3Line}
+          title="No projects yet"
+          description="A project watches one or more repos and turns their changes into posts."
+          action={{ href: "/onboarding", label: "Set up a project" }}
+        />
+      )}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {mockProjects.map((p) => (
+        {projects.map((p) => (
           <Link
             key={p.id}
-            href="/settings"
+            href={`/projects/${p.id}`}
             className="group flex flex-col gap-5 rounded-3xl border border-border-button-default bg-background-primary-default p-5 shadow-xs transition-[border-color,box-shadow] hover:border-border-button-hover hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-3">

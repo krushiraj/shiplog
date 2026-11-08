@@ -247,9 +247,20 @@ export function DraftCard({
           {draft.openQuestion && (
             <div className="flex flex-col gap-2">
               {answered ? (
-                <Chip variant="subtle" color="lime" className="w-fit gap-1.5">
-                  <RiCheckLine className="size-4" aria-hidden /> Answered: {answered}
-                </Chip>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Chip variant="subtle" color="lime" className="w-fit gap-1.5">
+                    <RiCheckLine className="size-4" aria-hidden /> Answered: {answered}
+                  </Chip>
+                  <Button
+                    size="small"
+                    variant="secondary"
+                    leadingIcon={RiRefreshLine}
+                    disabled={regenerating}
+                    onClick={() => onRegenerate?.(draft.id, "Work in my answer about why this changed.")}
+                  >
+                    Rewrite with your answer
+                  </Button>
+                </div>
               ) : (
                 <button
                   type="button"
