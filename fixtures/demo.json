@@ -1,0 +1,259 @@
+{
+  "project": {
+    "name": "Shiplog",
+    "repo": "krushiraj/shiplog",
+    "config": {
+      "channels": ["linkedin", "x"],
+      "review": { "mode": "inbox" },
+      "posting": { "hashtags": ["#BuildInPublic"], "link": "repo" }
+    },
+    "brief": {
+      "pitch": "Shiplog watches your GitHub repos and turns what you ship into build-in-public posts in your own voice, scheduled through Buffer.",
+      "audience": "Indie hackers and small teams who build in public but never find time to write about it.",
+      "problem": "Shipping happens every day, but writing about it doesn't. Commit messages are too terse to post, and generic AI posts don't sound like you.",
+      "architecture": [
+        { "module": "GitHub App + webhooks", "purpose": "Receives pushes, merged PRs and releases, verifies them and stores each one once." },
+        { "module": "Change-card analyser", "purpose": "Reads each change with its diff and writes what / why / how / impact plus a 0-3 significance score." },
+        { "module": "Project brief", "purpose": "A one-time read of the README and key files so posts explain changes in product terms." },
+        { "module": "Composer", "purpose": "Writes one variant per channel from the voice profile, learned rules and recent posts." },
+        { "module": "Rule gate", "purpose": "Checks never-words, length limits and secrets before anything is shown or posted." },
+        { "module": "Scheduler tick", "purpose": "Every 15 minutes: builds digests, fires instant posts, expires stale drafts." },
+        { "module": "Buffer publisher", "purpose": "Posts approved drafts through the Buffer API, one idempotency key per channel." },
+        { "module": "Voice learner", "purpose": "Diffs your edits against the AI draft and turns repeated changes into rules." }
+      ],
+      "glossary": [
+        { "term": "Change card", "plain": "A plain-language summary of one change: what, why, how, impact." },
+        { "term": "Digest", "plain": "One post that rolls up several small changes, sent on a schedule." },
+        { "term": "Voice DNA", "plain": "Your writing habits per platform: tone, openers, emoji, hashtags, words you never use." },
+        { "term": "Voice rule", "plain": "Something Shiplog learned from your edits, like 'never say game-changer'." },
+        { "term": "Significance", "plain": "0 is a chore, 1 a fix, 2 a feature, 3 a milestone." }
+      ],
+      "stack": ["Next.js 15", "TypeScript", "Postgres (Neon) + Drizzle", "Claude", "Buffer GraphQL API", "GitHub Apps", "Vercel"],
+      "milestones": [
+        "Core logic and AI layer with tests",
+        "Buffer sign-in and GitHub App pipeline",
+        "Inbox, timeline and voice memory UI",
+        "Composer, scheduler and publishing",
+        "v0.1 public demo"
+      ],
+      "facts": [
+        "Built for the Buffer Commit contest.",
+        "Secrets are scrubbed before any text reaches the model and again before posting.",
+        "Every AI response is schema-validated, with a plain fallback draft if it fails twice.",
+        "Nothing posts without approval unless you turn on auto mode."
+      ]
+    }
+  },
+  "cards": [
+    {
+      "sha": "30f2bd11f90f5cf21910e24a15c4f5e753b088c7",
+      "message": "Initial commit from Create Next App",
+      "hoursAgo": 47,
+      "what": "Started the project from a fresh Next.js app.",
+      "why": "Needed a web app and API routes in one deploy.",
+      "whyInferred": true,
+      "how": "Create Next App with TypeScript, Tailwind and the App Router.",
+      "impact": "Nothing user-facing yet.",
+      "significance": 0
+    },
+    {
+      "sha": "4f9d7bb1cb0c04760242784534f683c836359144",
+      "message": "chore: dependencies, vitest, env template, API reference and plans",
+      "hoursAgo": 45,
+      "what": "Wrote the design, the build plan and a Buffer API reference before writing any product code.",
+      "why": "The contest deadline is short, so every task needed to be clear up front.",
+      "how": "An 800-line plan split into small tasks, a design doc and notes on Buffer's GraphQL API, plus test tooling.",
+      "impact": "Each later change maps to a planned task.",
+      "significance": 0
+    },
+    {
+      "sha": "ca4cb7f10717589bb8c5a56077f54dc0f3a6336f",
+      "message": "chore: add vite for vitest",
+      "hoursAgo": 44.5,
+      "what": "Fixed the test runner setup.",
+      "why": "Vitest needs Vite installed alongside it.",
+      "how": "Added vite as a dev dependency.",
+      "impact": "Tests run.",
+      "significance": 0
+    },
+    {
+      "sha": "ecbe95db6af8c2b272060ad9dfe7a2f9a2b34476",
+      "message": "feat: core logic — budget, crypto, PKCE, scrubber, diff budgeting, config, scheduling, rule gate, voice learner, webhook normaliser",
+      "hoursAgo": 42,
+      "what": "Built the core logic: secret scrubbing, the rule gate, schedule maths and the voice learner.",
+      "why": "Posts must never leak secrets, and the voice should improve from edits instead of from settings.",
+      "how": "Pure, tested functions. The learner diffs your edit against the AI draft and proposes a rule once it sees the same change twice.",
+      "impact": "Every post is checked for secrets, banned words and length before you see it.",
+      "significance": 2
+    },
+    {
+      "sha": "de2184152079842a103fb69d141f6dbd9652cd61",
+      "message": "feat: AI layer — Claude JSON client, schemas, prompts, fallback drafts",
+      "hoursAgo": 40,
+      "what": "Added the AI layer that turns code changes into structured summaries and posts.",
+      "why": "Model output has to be reliable enough to post without babysitting.",
+      "how": "Claude returns JSON that is checked against a schema. One retry, then a plain fallback draft built from the change cards.",
+      "impact": "A bad model response never blocks a draft.",
+      "significance": 2
+    },
+    {
+      "sha": "84b84d139e41cabd2c7fb1f061f0191617ae63ba",
+      "message": "feat: database schema, Buffer OAuth with PKCE, single-flight token refresh, budgeted GraphQL client",
+      "hoursAgo": 36,
+      "what": "Sign in with Buffer, and a database for projects, change cards, drafts and voice rules.",
+      "why": "Buffer is where posts go out, so the Buffer account is the login.",
+      "how": "OAuth with PKCE. Tokens are encrypted at rest, refreshes are single-flight, and API calls are counted against Buffer's rate limits.",
+      "impact": "One sign-in connects every Buffer channel.",
+      "significance": 2
+    },
+    {
+      "sha": "37349216c973f1fa378010c6623e3091d902cb3d",
+      "message": "feat: GitHub App pipeline — webhooks, deduped events, change-card analyser, project brief builder",
+      "hoursAgo": 30,
+      "what": "Shiplog now reads every push, merged PR and release and writes a plain-language change card for it.",
+      "why": "Commit messages say what changed in code. Posts need what changed for people.",
+      "how": "A GitHub App sends webhooks; events are verified and stored once. The analyser reads the diff and the project brief and writes what / why / how / impact.",
+      "impact": "Every change you ship becomes something you can post about.",
+      "significance": 3
+    },
+    {
+      "sha": "5763539246fd9514f42bbd62121982e7d1314168",
+      "message": "fix: finish GitHub install linking after Buffer sign-in",
+      "hoursAgo": 29,
+      "what": "Fixed GitHub installs getting lost when you install the app before signing in.",
+      "why": "The install was saved without an owner, so repos never showed up.",
+      "how": "The pending install now rides through the Buffer sign-in and is linked when you land back.",
+      "impact": "Install order doesn't matter any more.",
+      "significance": 1
+    },
+    {
+      "sha": "31099a08f009a4e7f64fd883d536bf7397ff1b89",
+      "message": "feat: BoardUI interface — landing, privacy, app shell, inbox with draft cards, timeline, projects, memory, settings",
+      "hoursAgo": 22,
+      "what": "Shipped the interface: an inbox of drafts, a timeline of posts, voice memory and settings.",
+      "why": "Reviewing a post should take seconds: read, tweak, approve.",
+      "whyInferred": true,
+      "how": "Built on the BoardUI kit. Each draft shows its source changes, channel variants and a voice score.",
+      "impact": "The whole review loop fits on one screen.",
+      "significance": 2
+    },
+    {
+      "sha": "04a243a6e056bc07dac00361ed77f365875d12b1",
+      "message": "fix: review findings — wider secret detection, GCM tag length, DST-safe digest slots, gate text fixes, PR base-branch filter",
+      "hoursAgo": 14,
+      "what": "Closed gaps from a code review: more secret formats caught, and digests no longer drift around daylight saving.",
+      "why": "A missed secret in a public post is the worst possible failure.",
+      "how": "More token patterns in the scrubber, stricter encryption settings, and digest slots computed in the user's timezone.",
+      "impact": "Safer posts, and digests land at the time you picked.",
+      "significance": 1
+    },
+    {
+      "sha": "f8855b70b6eb6a0740569cc8a57f3b2c120a4ea8",
+      "message": "feat: composer, scheduler tick, idempotent publishing to Buffer, auto/draft review modes",
+      "hoursAgo": 6,
+      "what": "Drafts now write and post themselves: a composer, a 15-minute scheduler and publishing to Buffer.",
+      "why": "This closes the loop from commit to scheduled post.",
+      "how": "The tick builds digests and instant drafts; the composer writes one variant per channel; publishing uses one idempotency key per channel so a retry never double-posts.",
+      "impact": "Ship code, get a draft in your inbox, approve, and it's queued in Buffer.",
+      "significance": 3,
+      "openQuestion": "Why did you move the scheduler tick to GitHub Actions?"
+    },
+    {
+      "kind": "release",
+      "ref": "v0.1.0",
+      "message": "v0.1 — first public demo",
+      "hoursAgo": 1,
+      "what": "Released v0.1: the first version anyone can try, with a no-signup demo.",
+      "why": "Judges and early users should see the full loop without connecting anything.",
+      "how": "A seeded demo project built from Shiplog's own history, with simulated posting.",
+      "impact": "Try it in two minutes at getshiplog.vercel.app/demo.",
+      "significance": 3
+    }
+  ],
+  "voice": {
+    "linkedin": {
+      "tone": "casual, first person, plain words, a bit dry",
+      "openers": ["Day 2 of building Shiplog.", "Shipped:", "Small win today:"],
+      "closers": ["Next up:", "More tomorrow."],
+      "sentence": { "avg_len": 11, "fragments": true },
+      "vocab": {
+        "signature": ["shipped", "the loop", "boring on purpose"],
+        "never": ["excited to announce", "game-changer", "thrilled", "revolutionize", "leverage"]
+      },
+      "format": { "emoji": "max 1", "line_breaks": "short lines, blank line between ideas", "hashtags": "at the end, max 2" },
+      "examples": [
+        "Day 1 of building Shiplog.\n\n3 things work end to end:\n- secrets get scrubbed before the model sees anything\n- every AI reply is schema-checked\n- if the model fails twice, you still get a plain draft\n\nBoring on purpose. More tomorrow.\n\n#BuildInPublic",
+        "40 commits in, the hardest part wasn't the AI.\n\nIt was making sure a retry never posts twice.\n\nOne idempotency key per channel fixed it.\n\n#BuildInPublic #IndieHackers",
+        "Shipped: sign in with Buffer.\n\nOne login, every channel connected.\nTokens encrypted, refreshes single-flight.\n\nNext up: reading your commits."
+      ]
+    },
+    "x-short": {
+      "tone": "casual, first person, terse",
+      "openers": ["Shipped:", "Day 2:"],
+      "closers": [],
+      "sentence": { "avg_len": 8, "fragments": true },
+      "vocab": {
+        "signature": ["shipped", "the loop"],
+        "never": ["excited to announce", "game-changer", "thrilled", "revolutionize", "leverage"]
+      },
+      "format": { "emoji": "max 1", "line_breaks": "one idea per line", "hashtags": "at the end, max 2" },
+      "examples": [
+        "3 safety checks before any post goes out:\nsecrets, banned words, length.\n\nShiplog runs all 3 on every draft.\n\n#BuildInPublic",
+        "Shipped: sign in with Buffer.\nOne login, every channel.",
+        "12 commits → 1 post.\nThat's the whole idea."
+      ]
+    }
+  },
+  "rules": [
+    {
+      "kind": "never",
+      "rule": "Never say \"excited to announce\".",
+      "pattern": "excited to announce",
+      "register": null,
+      "sightings": 3,
+      "active": true
+    },
+    {
+      "kind": "prefer",
+      "rule": "Lead with the number, not the feature name.",
+      "pattern": null,
+      "register": "linkedin",
+      "sightings": 1,
+      "active": false
+    }
+  ],
+  "drafts": [
+    {
+      "trigger": "digest",
+      "label": "Daily digest · 5 changes",
+      "cards": [
+        "37349216c973f1fa378010c6623e3091d902cb3d",
+        "5763539246fd9514f42bbd62121982e7d1314168",
+        "31099a08f009a4e7f64fd883d536bf7397ff1b89",
+        "04a243a6e056bc07dac00361ed77f365875d12b1",
+        "f8855b70b6eb6a0740569cc8a57f3b2c120a4ea8"
+      ],
+      "hoursAgo": 0.75,
+      "variants": {
+        "linkedin": "5 changes since yesterday. The loop is closed.\n\nCommit → change card → draft in my voice → approve → queued in Buffer.\n\nWhat shipped:\n- Shiplog reads every push and PR and explains it in plain words\n- an inbox to read, tweak and approve drafts\n- a scheduler that writes digests like this one\n- publishing that can retry without double-posting\n- more secret formats caught before anything goes out\n\nThis post was drafted by Shiplog from those 5 commits. I changed one line.\n\nNext up: a demo anyone can try without signing up.\n\n#BuildInPublic",
+        "x": "5 changes today. The loop is closed:\n\ncommit → change card → draft → approve → Buffer\n\nThis post was drafted from those 5 commits 🚢\n\n#BuildInPublic"
+      },
+      "voiceScore": { "linkedin": 0.86, "x": 0.91 },
+      "suggestions": { "linkedin": ["Cut the list to 3 items to keep it skimmable."], "x": [] },
+      "themes": ["closing the loop", "safety"]
+    },
+    {
+      "trigger": "instant:release",
+      "label": "Release v0.1",
+      "cards": ["v0.1.0"],
+      "hoursAgo": 0.25,
+      "variants": {
+        "linkedin": "v0.1 of Shiplog is out.\n\n2 minutes, no signup: getshiplog.vercel.app/demo\n\nYou'll see Shiplog's own commits turned into plain-language change cards, then into posts like this one.\n\nEdit a draft and it learns from you. Approve it and the post is simulated, so nothing goes anywhere.\n\nBuilt for the Buffer Commit contest.\n\n#BuildInPublic #IndieHackers",
+        "x": "v0.1 of Shiplog is out.\n\nCommits in, posts in your voice out.\nTry the demo, no signup: getshiplog.vercel.app/demo\n\n#BuildInPublic"
+      },
+      "voiceScore": { "linkedin": 0.83, "x": 0.9 },
+      "suggestions": { "linkedin": ["Open with the 2-minute number."], "x": [] },
+      "themes": ["release"]
+    }
+  ]
+}

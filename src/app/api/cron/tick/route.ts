@@ -1,4 +1,5 @@
 import { analyseEvents } from "@/lib/analyse";
+import { cleanupOldDemos } from "@/lib/demo";
 import { pendingEvents } from "@/lib/events";
 import { runTick } from "@/lib/tick";
 
@@ -13,5 +14,6 @@ export async function GET(req: Request) {
   const summary = await runTick({
     analyse: async (limit) => analyseEvents((await pendingEvents(limit)).map((e) => e.id)),
   });
-  return Response.json(summary);
+  const demosCleaned = await cleanupOldDemos().catch(() => 0);
+  return Response.json({ ...summary, demosCleaned });
 }
