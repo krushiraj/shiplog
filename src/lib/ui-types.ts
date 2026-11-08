@@ -89,3 +89,6 @@ export type BriefView = {
   /** Author answers to open questions, appended over time. */
   facts?: string[];
 };
+
+/** Quick reject reasons in the inbox. They describe the draft, not the voice, so they never become voice rules. */
+export const REJECT_REASONS = ["Not worth a post", "Facts are wrong", "Doesn't sound like me"] as const;

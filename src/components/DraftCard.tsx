@@ -30,7 +30,7 @@ import { InputBase } from "@/components/base/input/input";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/base/tabs/tabs";
 import { Textarea } from "@/components/base/textarea/textarea";
 import { ChangeCardItem } from "@/components/ChangeCardItem";
-import { CHANNELS, type ChannelKey, type DraftView } from "@/lib/ui-types";
+import { CHANNELS, REJECT_REASONS, type ChannelKey, type DraftView } from "@/lib/ui-types";
 import { cx } from "@/utils/cx";
 
 export type ApproveWhen = { kind: "next_best" } | { kind: "now" } | { kind: "at"; iso: string };
@@ -50,7 +50,6 @@ export type DraftCardProps = {
 
 const CHANNEL_ICON = { linkedin: RiLinkedinFill, x: RiTwitterXFill, threads: RiThreadsFill } as const;
 const QUICK_NUDGES = ["shorter", "more technical", "lead with the number", "more casual"];
-const REJECT_REASONS = ["Not worth a post", "Facts are wrong", "Doesn't sound like me"];
 
 function driftTone(drift: number) {
   if (drift < 0.3) return { color: "lime" as const, label: "On voice" };

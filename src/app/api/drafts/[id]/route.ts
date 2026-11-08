@@ -7,6 +7,7 @@ import { publishDraft } from "@/lib/buffer/post";
 import { compose } from "@/lib/compose";
 import { DemoLimitError, withDemoBudget } from "@/lib/demo";
 import { getSessionUserId } from "@/lib/session";
+import { REJECT_REASONS } from "@/lib/ui-types";
 import { addExamples, editedChannels, learnFromEdit, learnFromReject, type LearnedRule } from "@/lib/voice/learn-server";
 
 const When = z.union([z.enum(["now", "next_best_slot"]), z.object({ at: z.iso.datetime() })]);
@@ -94,7 +95,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
       case "reject": {
         await db.update(drafts).set({ status: "rejected", rejectReason: body.reason || null }).where(eq(drafts.id, id));
-        const proposals = body.reason.trim() ? await learnFromReject(id, body.reason).catch(() => []) : [];
+        const voiceReason = body.reason.trim() && !(REJECT_REASONS as readonly string[]).includes(body.reason.trim());
+        const proposals = voiceReason ? await learnFromReject(id, body.reason).catch(() => []) : [];
         return NextResponse.json({ ok: true, proposals });
       }
 
