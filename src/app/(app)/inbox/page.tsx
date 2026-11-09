@@ -1,11 +1,15 @@
 import { RiInbox2Line } from "@remixicon/react";
+import { after } from "next/server";
 import { EmptyState } from "@/components/EmptyState";
 import { InboxView } from "@/components/InboxView";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { tickForUser } from "@/lib/tick";
 import { loadInbox, loadProjects, requireUserId } from "@/lib/views";
 
 export default async function InboxPage() {
   const userId = await requireUserId();
+  // Catch up on a due digest if the cron is late; a new draft shows on the next load.
+  after(() => tickForUser(userId).catch((e) => console.error("Inbox tick failed", e)));
   const [drafts, projects] = await Promise.all([loadInbox(userId), loadProjects(userId)]);
   return (
     <div className="mx-auto w-full max-w-6xl">

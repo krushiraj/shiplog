@@ -3,7 +3,9 @@ name: Scheduler tick
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    # Off the :00/:15 marks, which GitHub delays or drops most under load. Still best-effort: the webhook and
+    # Inbox visits also tick (lib/tick.ts tickForEvents / tickForUser).
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 
 jobs:

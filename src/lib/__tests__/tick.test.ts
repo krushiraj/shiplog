@@ -26,8 +26,9 @@ function makeStore(opts: { cards?: TickCard[]; drafts?: FakeDraft[]; projectConf
     drafts.some((d) => d.cardIds.includes(c.id) && (!statuses || statuses.includes(d.status)));
 
   const store: TickStore = {
-    async claimProjects(now, until) {
+    async claimProjects(now, until, onlyIds) {
       await Promise.resolve();
+      if (onlyIds && !onlyIds.includes(project.id)) return [];
       if (project.paused || (project.claimedUntil && project.claimedUntil > now)) return [];
       project.claimedUntil = until;
       return [project.id];
@@ -75,6 +76,17 @@ describe("runTick", () => {
     expect(compose).toHaveBeenCalledWith("p1", ["c1", "c2"], "digest");
     expect(autoPublish).toHaveBeenCalledWith("d1");
     expect(project.lastDigestAt).toEqual(NOW);
+  });
+
+  it("ticks only the given projects", async () => {
+    const { deps, compose } = makeStore({ cards: [card("c1", 3)] });
+
+    expect((await runTick({ ...deps, projectIds: ["other"] })).claimed).toEqual([]);
+    expect((await runTick({ ...deps, projectIds: [] })).claimed).toEqual([]);
+    expect(compose).not.toHaveBeenCalled();
+
+    expect((await runTick({ ...deps, projectIds: ["p1"] })).claimed).toEqual(["p1"]);
+    expect(compose).toHaveBeenCalled();
   });
 
   it("claims a project once under concurrent ticks", async () => {

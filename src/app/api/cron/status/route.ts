@@ -39,7 +39,7 @@ export async function GET(req: Request) {
       .orderBy(desc(aiUsage.createdAt))
       .limit(15),
     db
-      .select({ name: projects.name, hasBrief: sql<boolean>`${projects.brief} is not null`, briefStatus: projects.briefStatus, lastDigestAt: projects.lastDigestAt, paused: projects.paused })
+      .select({ name: projects.name, hasBrief: sql<boolean>`${projects.brief} is not null`, briefStatus: projects.briefStatus, lastDigestAt: projects.lastDigestAt, claimedUntil: projects.claimedUntil, paused: projects.paused })
       .from(projects)
       .where(eq(projects.isDemo, false)),
   ]);

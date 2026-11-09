@@ -29,8 +29,8 @@ export type TickProject = {
 };
 
 export interface TickStore {
-  /** Atomically claims unclaimed, unpaused projects until `until`; returns the ids this caller won. */
-  claimProjects(now: Date, until: Date): Promise<string[]>;
+  /** Atomically claims unclaimed, unpaused projects until `until` (only `onlyIds` when given); returns the ids this caller won. */
+  claimProjects(now: Date, until: Date, onlyIds?: string[]): Promise<string[]>;
   loadProject(id: string): Promise<TickProject | null>;
   /** Cards since `since` that are in no draft of this project. */
   instantCandidates(projectId: string, repos: string[], since: Date): Promise<TickCard[]>;
@@ -45,6 +45,8 @@ export type TickDeps = {
   analyse?: (limit: number) => Promise<unknown>;
   compose?: (projectId: string, cardIds: string[], trigger: string) => Promise<{ draftId: string }>;
   autoPublish?: (draftId: string) => Promise<unknown>;
+  /** Limit the tick to these projects (event- or visit-driven ticks). Omit for every project. */
+  projectIds?: string[];
   /** Total AI spend (all users) since `since`. */
   aiCostSince?: (since: Date) => Promise<number>;
   now?: () => Date;
@@ -67,7 +69,8 @@ export async function runTick(deps: TickDeps = {}): Promise<TickSummary> {
     }
   }
 
-  summary.claimed = await store.claimProjects(now, new Date(now.getTime() + CLAIM_MS));
+  if (deps.projectIds?.length === 0) return summary;
+  summary.claimed = await store.claimProjects(now, new Date(now.getTime() + CLAIM_MS), deps.projectIds);
 
   const draft = async (projectId: string, cardIds: string[], trigger: string) => {
     const { draftId } = await compose(projectId, cardIds, trigger);
@@ -160,7 +163,8 @@ async function cardsFor(repos: string[], since: Date, exclusion: ReturnType<type
 }
 
 export const drizzleTickStore: TickStore = {
-  async claimProjects(now, until) {
+  async claimProjects(now, until, onlyIds) {
+    if (onlyIds?.length === 0) return [];
     const rows = await db
       .update(projects)
       .set({ claimedUntil: until })
@@ -169,6 +173,7 @@ export const drizzleTickStore: TickStore = {
           eq(projects.paused, false),
           eq(projects.isDemo, false),
           or(isNull(projects.claimedUntil), lt(projects.claimedUntil, now)),
+          onlyIds ? inArray(projects.id, onlyIds) : undefined,
         ),
       )
       .returning({ id: projects.id });
@@ -204,3 +209,23 @@ export const drizzleTickStore: TickStore = {
     return rows.length;
   },
 };
+
+/**
+ * Ticks only the projects that watch these events' repos. Called right after a webhook's events are analysed, so an
+ * instant post or a due digest doesn't wait for the 15-minute cron (GitHub's scheduled workflows can lag by hours).
+ */
+export async function tickForEvents(eventIds: string[]): Promise<TickSummary | null> {
+  if (!eventIds.length) return null;
+  const rows = await db
+    .selectDistinct({ id: projectRepos.projectId })
+    .from(projectRepos)
+    .innerJoin(events, eq(events.repoFullName, projectRepos.repoFullName))
+    .where(inArray(events.id, eventIds));
+  return rows.length ? runTick({ projectIds: rows.map((r) => r.id) }) : null;
+}
+
+/** Ticks a user's projects when they open the app, as a second fallback for a late cron. */
+export async function tickForUser(userId: string): Promise<TickSummary | null> {
+  const rows = await db.select({ id: projects.id }).from(projects).where(and(eq(projects.userId, userId), eq(projects.isDemo, false)));
+  return rows.length ? runTick({ projectIds: rows.map((r) => r.id) }) : null;
+}
