@@ -12,6 +12,8 @@ export type CachedChannel = {
   timezone: string | null;
   type: string | null;
   descriptor: string | null;
+  /** X only: the account's X subscription as Buffer reports it (null or "None" means no subscription). */
+  metadata?: { subscriptionType?: string | null } | null;
 };
 
 export const users = pgTable("users", {

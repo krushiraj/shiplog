@@ -8,6 +8,8 @@ export type GateOptions = {
   hashtags: string[];
   maxHashtags?: number;
   maxEmoji?: number;
+  /** Overrides the service's default length limit (e.g. X Premium). */
+  limit?: number;
 };
 
 export type Violation = {
@@ -162,7 +164,7 @@ function neverMatches(text: string, rule: GateRule): boolean {
 }
 
 export function gate(input: string, opts: GateOptions): GateResult {
-  const { channel, rules, hashtags, maxHashtags = 3, maxEmoji = 2 } = opts;
+  const { channel, rules, hashtags, maxHashtags = 3, maxEmoji = 2, limit = LIMITS[channel] ?? DEFAULT_LIMIT } = opts;
   const fixed: string[] = [];
   let text = input;
   for (const fix of FIXES) {
@@ -181,7 +183,6 @@ export function gate(input: string, opts: GateOptions): GateResult {
       violations.push({ kind: "never", detail: `matches never rule "${rule.rule}"`, rule: rule.rule });
     }
   }
-  const limit = LIMITS[channel] ?? DEFAULT_LIMIT;
   const extraTags = appendedHashtags(text, hashtags);
   const length = countChars([text, ...extraTags].join(" "), channel);
   if (length > limit) violations.push({ kind: "length", detail: `${length}/${limit} characters for ${channel}` });

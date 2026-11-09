@@ -34,6 +34,18 @@ export const registerFor = (key: string, config: ProjectConfig): string =>
 
 export const charLimit = (key: string): number => LIMITS[key] ?? DEFAULT_LIMIT;
 
+/** X Premium (any paid tier) allows long posts of up to 25,000 characters. */
+export const X_LONG_POST_LIMIT = 25_000;
+
+export function hasXSubscription(channel: CachedChannel | null | undefined): boolean {
+  const tier = channel?.metadata?.subscriptionType?.trim().toLowerCase();
+  return !!tier && tier !== "none" && tier !== "free";
+}
+
+/** The real limit for this channel: the service default, raised for X accounts with a subscription. */
+export const channelLimit = (key: string, channel: CachedChannel | null | undefined): number =>
+  key === "x" && hasXSubscription(channel) ? X_LONG_POST_LIMIT : charLimit(key);
+
 /**
  * config.channels holds Buffer channel ids. An id missing from the cached Buffer channel list is
  * kept only when it is itself a channel key (demo projects configure e.g. ["linkedin", "x"]).
@@ -44,7 +56,7 @@ export function resolveTargets(channelIds: string[], cached: CachedChannel[], co
     const service = channel?.service ?? (id in LIMITS ? id : null);
     if (!service) return [];
     const key = channelKey(service);
-    return [{ channelId: id, key, service, register: registerFor(key, config), limit: charLimit(key), channel }];
+    return [{ channelId: id, key, service, register: registerFor(key, config), limit: channelLimit(key, channel), channel }];
   });
 }
 

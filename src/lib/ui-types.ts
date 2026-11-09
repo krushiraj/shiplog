@@ -43,6 +43,8 @@ export type DraftView = {
   cards: ChangeCardView[];
   openQuestion: { cardId: string; question: string } | null;
   gate: { drift: number; suggestions: VoiceSuggestion[]; fixed: string[] };
+  /** Per-channel character limit when it differs from the default (X Premium). */
+  limits?: Partial<Record<ChannelKey, number>>;
   createdAt: string;
 };
 

@@ -1,6 +1,6 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { aiUsage, changeCards, drafts, events, projects } from "@/db/schema";
+import { aiUsage, changeCards, drafts, events, posts, projects, users, voiceProfiles, voiceRules } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const [eventCounts, recentEvents, recentCards, draftCounts, recentAi, projectRows] = await Promise.all([
+  const [eventCounts, recentEvents, recentCards, draftCounts, recentAi, projectRows, recentPosts, voice, rules, channelRows] = await Promise.all([
     db
       .select({ repo: events.repoFullName, total: sql<number>`count(*)::int`, unprocessed: sql<number>`count(*) filter (where ${events.processedAt} is null)::int` })
       .from(events)
@@ -42,7 +42,28 @@ export async function GET(req: Request) {
       .select({ name: projects.name, hasBrief: sql<boolean>`${projects.brief} is not null`, briefStatus: projects.briefStatus, lastDigestAt: projects.lastDigestAt, claimedUntil: projects.claimedUntil, paused: projects.paused })
       .from(projects)
       .where(eq(projects.isDemo, false)),
+    db
+      .select({ at: posts.createdAt, channelId: posts.channelId, status: posts.status, bufferPostId: posts.bufferPostId, error: posts.error })
+      .from(posts)
+      .orderBy(desc(posts.createdAt))
+      .limit(10),
+    db
+      .select({ register: voiceProfiles.register, projectId: voiceProfiles.projectId, dna: voiceProfiles.dna })
+      .from(voiceProfiles)
+      .innerJoin(users, eq(users.id, voiceProfiles.userId))
+      .where(sql`${users.bufferAccountId} not like 'demo:%'`),
+    db
+      .select({ kind: voiceRules.kind, rule: voiceRules.rule, register: voiceRules.register, sightings: voiceRules.sightings, active: voiceRules.active, lastSeenAt: voiceRules.lastSeenAt })
+      .from(voiceRules)
+      .innerJoin(users, eq(users.id, voiceRules.userId))
+      .where(sql`${users.bufferAccountId} not like 'demo:%'`)
+      .orderBy(desc(voiceRules.lastSeenAt))
+      .limit(20),
+    db.select({ channels: users.channels }).from(users).where(sql`${users.bufferAccountId} not like 'demo:%'`),
   ]);
 
-  return Response.json({ projects: projectRows, eventCounts, recentEvents, recentCards, draftCounts, recentAi });
+  const channels = channelRows.flatMap((u) =>
+    (u.channels ?? []).map((c) => ({ id: c.id, service: c.service, name: c.name, subscriptionType: c.metadata?.subscriptionType ?? null })),
+  );
+  return Response.json({ projects: projectRows, eventCounts, recentEvents, recentCards, draftCounts, recentAi, recentPosts, voice, rules, channels });
 }

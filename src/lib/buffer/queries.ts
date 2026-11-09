@@ -15,6 +15,7 @@ export const CHANNELS_QUERY = /* GraphQL */ `
   query Channels($organizationId: OrganizationId!) {
     channels(input: { organizationId: $organizationId }) {
       id name displayName service avatar isDisconnected isLocked isQueuePaused timezone type descriptor
+      metadata { ... on TwitterMetadata { subscriptionType } }
     }
   }
 `;

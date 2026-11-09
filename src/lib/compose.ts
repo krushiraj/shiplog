@@ -34,7 +34,7 @@ export type ComposeContext = {
   recentPosts: string[];
 };
 
-export type ChannelGate = { fixed: string[]; violations: Violation[]; blocked: boolean };
+export type ChannelGate = { fixed: string[]; violations: Violation[]; blocked: boolean; limit: number };
 
 export type DraftGate = {
   channels: Record<string, ChannelGate>;
@@ -153,9 +153,9 @@ export async function compose(
   for (const spec of specs) {
     const raw = aiVariants[spec.key]?.trim() || fallbackDraft(ctx.cards, spec.key, spec.limit, ctx.project.name);
     const rules = activeRules.filter((r) => !r.register || r.register === spec.register);
-    const g = gate(raw, { channel: spec.key, rules: rules as Parameters<typeof gate>[1]["rules"], hashtags: [] });
+    const g = gate(raw, { channel: spec.key, rules: rules as Parameters<typeof gate>[1]["rules"], hashtags: [], limit: spec.limit });
     variants[spec.key] = g.text;
-    gates[spec.key] = { fixed: g.fixed, violations: g.violations, blocked: g.blocked };
+    gates[spec.key] = { fixed: g.fixed, violations: g.violations, blocked: g.blocked, limit: spec.limit };
   }
 
   let voiceScore: Record<string, number> = {};

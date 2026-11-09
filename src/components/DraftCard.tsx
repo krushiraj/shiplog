@@ -105,8 +105,9 @@ export function DraftCard({
     setTexts(draft.variants);
   }
 
+  const limitOf = (c: ChannelKey) => draft.limits?.[c] ?? CHANNELS[c].limit;
   const tone = driftTone(draft.gate.drift);
-  const overLimit = channels.some((c) => (texts[c] ?? "").length > CHANNELS[c].limit);
+  const overLimit = channels.some((c) => (texts[c] ?? "").length > limitOf(c));
   const edited = channels.some((c) => texts[c] !== draft.variants[c]);
 
   const approve = (when: ApproveWhen) => onApprove?.(draft.id, when, texts);
@@ -149,9 +150,9 @@ export function DraftCard({
             <TabList aria-label="Channels">
               {channels.map((c) => {
                 const len = (texts[c] ?? "").length;
-                const over = len > CHANNELS[c].limit;
+                const over = len > limitOf(c);
                 return (
-                  <Tab key={c} id={c} icon={CHANNEL_ICON[c]} count={<span className={cx("tabular-nums", over && "text-text-error-primary")}>{len}/{CHANNELS[c].limit}</span>}>
+                  <Tab key={c} id={c} icon={CHANNEL_ICON[c]} count={<span className={cx("tabular-nums", over && "text-text-error-primary")}>{len}/{limitOf(c)}</span>}>
                     {CHANNELS[c].label}
                   </Tab>
                 );
@@ -185,7 +186,7 @@ export function DraftCard({
                 </ComposerLoader>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-caption-1-regular text-text-tertiary">Edits teach Shiplog your voice.</span>
-                  <CharMeter count={(texts[c] ?? "").length} limit={CHANNELS[c].limit} />
+                  <CharMeter count={(texts[c] ?? "").length} limit={limitOf(c)} />
                 </div>
               </TabPanel>
             ))}

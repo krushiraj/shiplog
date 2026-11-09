@@ -25,7 +25,7 @@ type CardRow = typeof changeCards.$inferSelect;
 type DraftRow = typeof drafts.$inferSelect;
 type EventRef = { kind: string; ref: string; payload: unknown };
 type DraftGateLike = {
-  channels?: Record<string, { fixed?: string[] }>;
+  channels?: Record<string, { fixed?: string[]; limit?: number }>;
   targets?: { channelId: string; key: string }[];
   voiceScore?: Record<string, number>;
   suggestions?: Record<string, string[]>;
@@ -143,6 +143,7 @@ export function toDraftView(input: {
     cards,
     openQuestion: open ? { cardId: open.id, question: open.openQuestion! } : null,
     gate: { drift, suggestions, fixed },
+    limits: Object.fromEntries(keys.flatMap((k) => (gate.channels?.[k]?.limit ? [[k, gate.channels[k].limit]] : []))),
     createdAt: draft.createdAt.toISOString(),
   };
 }
