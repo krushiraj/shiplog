@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { projectRepos, users } from "@/db/schema";
 import { Chip } from "@/components/base/badges/chip";
 import { ButtonLink } from "@/components/base/buttons/button";
+import { DraftNowButton } from "@/components/DraftNowButton";
 import { BriefPanel } from "@/components/onboarding/BriefPanel";
 import { Section } from "@/components/onboarding/Section";
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -45,7 +46,12 @@ export default async function ProjectPage({ params, searchParams }: { params: Pr
       <PageHeader
         title={project.name}
         description={project.paused ? "Paused. Shiplog is not watching these repos." : "Watching for commits, merged PRs and releases."}
-        actions={<ButtonLink href={`/settings?project=${project.id}`} variant="secondary" leadingIcon={RiSettings3Line}>Settings</ButtonLink>}
+        actions={
+          <div className="flex items-start gap-2">
+            <ButtonLink href={`/settings?project=${project.id}`} variant="secondary" leadingIcon={RiSettings3Line}>Settings</ButtonLink>
+            {!project.paused && <DraftNowButton projectId={project.id} />}
+          </div>
+        }
       />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <BriefPanel projectId={project.id} initialBrief={project.brief as Partial<Brief> | null} initiallyBuilding={building} />

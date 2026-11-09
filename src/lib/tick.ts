@@ -229,3 +229,29 @@ export async function tickForUser(userId: string): Promise<TickSummary | null> {
   const rows = await db.select({ id: projects.id }).from(projects).where(and(eq(projects.userId, userId), eq(projects.isDemo, false)));
   return rows.length ? runTick({ projectIds: rows.map((r) => r.id) }) : null;
 }
+
+const DRAFT_NOW_MAX = 8;
+
+/** Cards for an on-request draft: skip chores when there is real work, then the most significant and recent first. */
+export function pickForDraftNow<C extends { significance: number; occurredAt: Date; cancelled: boolean }>(cards: C[], max = DRAFT_NOW_MAX): C[] {
+  const live = cards.filter((c) => !c.cancelled);
+  const pool = live.some((c) => c.significance > 0) ? live.filter((c) => c.significance > 0) : live;
+  return [...pool]
+    .sort((a, b) => b.significance - a.significance || b.occurredAt.getTime() - a.occurredAt.getTime())
+    .slice(0, max);
+}
+
+/**
+ * Writes a draft now from the changes no draft has covered yet, instead of waiting for the digest. Always lands in the
+ * Inbox (never auto-posts). Returns null when there is nothing new to write about.
+ */
+export async function draftNow(projectId: string, store: TickStore = drizzleTickStore, now = new Date()): Promise<string | null> {
+  const project = await store.loadProject(projectId);
+  if (!project) return null;
+  const config = resolveConfig(project.userDefaults as PartialConfig, project.projectConfig as PartialConfig);
+  const since = new Date(now.getTime() - parseDuration(config.triggers.digest.max_age));
+  const picked = pickForDraftNow(await store.digestCandidates(projectId, project.repos, HOLDING_STATUSES, since));
+  if (!picked.length) return null;
+  const { draftId } = await realCompose(projectId, picked.map((c) => c.id), "manual");
+  return draftId;
+}

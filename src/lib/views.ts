@@ -106,6 +106,7 @@ function triggerOf(trigger: string, cards: ChangeCardView[]): DraftView["trigger
     return { kind: "release", label: rel ? `Release ${rel.ref}` : "New release" };
   }
   if (trigger.startsWith("instant:")) return { kind: "instant", label: `Instant post · ${trigger.slice(8).replace(/_/g, " ")}` };
+  if (trigger === "manual") return { kind: "digest", label: `Written on request · ${plural(cards.length, "change")}` };
   return { kind: "digest", label: `Digest · ${plural(cards.length, "change")}` };
 }
 

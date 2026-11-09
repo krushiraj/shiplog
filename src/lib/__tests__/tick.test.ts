@@ -132,3 +132,24 @@ describe("runTick", () => {
     expect(compose).toHaveBeenCalledWith("p1", ["c1", "c3"], "digest");
   });
 });
+
+describe("pickForDraftNow", () => {
+  it("drops chores when there is real work, most significant and newest first", async () => {
+    const { pickForDraftNow } = await import("@/lib/tick");
+    const picked = pickForDraftNow([
+      card("chore", 0),
+      card("fix", 1, "commit", { occurredAt: hoursAgo(1) }),
+      card("feat-old", 2, "commit", { occurredAt: hoursAgo(5) }),
+      card("feat-new", 2, "commit", { occurredAt: hoursAgo(1) }),
+      card("gone", 3, "commit", { cancelled: true }),
+    ]);
+    expect(picked.map((c) => c.id)).toEqual(["feat-new", "feat-old", "fix"]);
+  });
+
+  it("keeps chores when they are all there is, and caps the count", async () => {
+    const { pickForDraftNow } = await import("@/lib/tick");
+    expect(pickForDraftNow([card("a", 0), card("b", 0)]).map((c) => c.id)).toHaveLength(2);
+    expect(pickForDraftNow(Array.from({ length: 12 }, (_, i) => card(`c${i}`, 1)), 8)).toHaveLength(8);
+    expect(pickForDraftNow([])).toEqual([]);
+  });
+});
