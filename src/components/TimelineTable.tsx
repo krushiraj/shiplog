@@ -81,7 +81,7 @@ const columns: ColumnDef<PostRow>[] = [
     cell: ({ row }) =>
       row.original.bufferUrl ? (
         <a href={row.original.bufferUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-body-2-medium text-accent-600 hover:underline">
-          Buffer <RiExternalLinkLine className="size-3.5" aria-hidden />
+          {row.original.bufferUrl.includes("buffer.com") ? "Buffer" : "View post"} <RiExternalLinkLine className="size-3.5" aria-hidden />
         </a>
       ) : null,
   },
