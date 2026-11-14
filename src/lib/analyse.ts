@@ -41,6 +41,8 @@ export type AnalyseStore = {
   insertCard(card: CardRow): Promise<void>;
   cancelCommitCard(repoFullName: string, sha: string): Promise<boolean>;
   markProcessed(eventId: string): Promise<void>;
+  /** Appends a dated milestone to a project's brief, if it has one. */
+  appendMilestone?(projectId: string, line: string): Promise<void>;
 };
 
 export type AnalyseDeps = {
@@ -103,6 +105,12 @@ export function drizzleAnalyseStore(database: Db = defaultDb): AnalyseStore {
     },
     async markProcessed(eventId) {
       await database.update(events).set({ processedAt: new Date() }).where(eq(events.id, eventId));
+    },
+    async appendMilestone(projectId, line) {
+      const [row] = await database.select({ brief: projects.brief }).from(projects).where(eq(projects.id, projectId)).limit(1);
+      if (!row?.brief) return;
+      const brief = row.brief as Record<string, unknown>;
+      await database.update(projects).set({ brief: { ...brief, milestones: withMilestone(brief.milestones, line) } }).where(eq(projects.id, projectId));
     },
   };
 }
@@ -281,7 +289,30 @@ export async function analyseEvent(eventId: string, deps: AnalyseDeps = defaultD
   if (demote) card = { ...card, significance: 0, openQuestion: null };
 
   await store.insertCard(card);
+  if (card.significance >= MILESTONE_SIGNIFICANCE && store.appendMilestone) {
+    const line = milestoneLine(card);
+    for (const projectId of new Set(repoProjects.map((p) => p.projectId).filter((id): id is string => !!id))) {
+      // Best effort: the card is already saved.
+      await store.appendMilestone(projectId, line).catch((err) => console.warn(`Could not add a milestone to project ${projectId}`, err));
+    }
+  }
   await done();
+}
+
+const MILESTONE_SIGNIFICANCE = 2;
+const MAX_MILESTONES = 20;
+
+export function milestoneLine(card: { what: string; occurredAt: Date | string }): string {
+  const date = new Date(card.occurredAt).toISOString().slice(0, 10);
+  const what = card.what.length > 160 ? `${card.what.slice(0, 157).trimEnd()}...` : card.what;
+  return `${date}: ${what}`;
+}
+
+/** Adds a milestone (newest last), skips duplicates, keeps the last MAX_MILESTONES. */
+export function withMilestone(existing: unknown, line: string): string[] {
+  const list = Array.isArray(existing) ? existing.filter((m): m is string => typeof m === "string") : [];
+  if (list.includes(line)) return list;
+  return [...list, line].slice(-MAX_MILESTONES);
 }
 
 const MAX_PER_RUN = 20;

@@ -159,6 +159,7 @@ export function composePrompt({
   voice,
   channels,
   recentPosts,
+  projectLog = [],
   trigger,
   nudge,
   hashtags,
@@ -169,6 +170,8 @@ export function composePrompt({
   voice: ComposeVoice;
   channels: ChannelSpec[];
   recentPosts: string[];
+  /** Dated milestone lines, oldest first: the project's story so far. */
+  projectLog?: string[];
   trigger: string;
   nudge?: string | null;
   hashtags: string[];
@@ -189,7 +192,7 @@ Avoid these AI-isms:
 ${AI_ISMS.map((a) => `- ${a}`).join("\n")}
 
 Never quote code, file paths, function names, or secrets. Describe what changed in plain words. Never claim numbers that the cards do not state.
-Do not repeat angles or phrasing from the recent posts.
+Do not repeat angles or phrasing from the recent posts. Use the project log only for context (progress so far, callbacks); write about the change cards.
 
 Return JSON: {"variants": {"<channel key>": string}, "themes": string[]} with exactly one entry per channel key.
 
@@ -212,6 +215,7 @@ ${section("example_posts", json(voice.examples))}`;
     section("change_cards", json(cards)),
     section("channels", channels.map((c) => `- ${c.key}: register=${c.register}, limit=${c.limit} chars`).join("\n")),
     section("recent_posts", recentPosts.map((p, i) => `${i + 1}. ${p}`).join("\n") || "(none)"),
+    ...(projectLog.length ? [section("project_log", projectLog.join("\n"))] : []),
     section("extras", extras.join("\n")),
     "Write the variants.",
   ].join("\n\n");

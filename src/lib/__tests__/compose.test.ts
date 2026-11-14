@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { compose, type ComposeContext, type ComposeStore, type NewDraft } from "@/lib/compose";
+import { compose, projectLogLines, type ComposeContext, type ComposeStore, type NewDraft } from "@/lib/compose";
 import { resolveTargets } from "@/lib/channels";
 import { DEFAULTS } from "@/lib/config";
 import type { CachedChannel } from "@/db/schema";
@@ -117,5 +117,16 @@ describe("compose", () => {
 
     expect(res.variants.linkedin).toMatch(/^Today in Shiplog:/);
     expect((callJson.mock.calls[0][1] as { user: string }).user).toContain("mention the cron");
+  });
+});
+
+describe("projectLogLines", () => {
+  it("orders oldest first, dates each line and leaves out the cards being drafted", () => {
+    const rows = [
+      { what: "Draft now button", occurredAt: new Date("2026-11-09T08:50:00Z") },
+      { what: "Webhook fix", occurredAt: new Date("2026-11-08T10:00:00Z") },
+      { what: "Inbox", occurredAt: new Date("2026-11-07T10:00:00Z") },
+    ];
+    expect(projectLogLines(rows, ["Draft now button"])).toEqual(["2026-11-07: Inbox", "2026-11-08: Webhook fix"]);
   });
 });

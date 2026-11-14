@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { analyseEvent, analyseEvents, fallbackCard, type AnalyseDeps, type AnalyseStore, type CardRow, type StoredEvent } from "@/lib/analyse";
+import { analyseEvent, analyseEvents, fallbackCard, milestoneLine, withMilestone, type AnalyseDeps, type AnalyseStore, type CardRow, type StoredEvent } from "@/lib/analyse";
 import type { GitHub } from "@/lib/github/app";
 import type { PartialConfig } from "@/lib/config";
 
@@ -215,5 +215,45 @@ describe("analyseEvents", () => {
     });
     await analyseEvents(ids, undefined, run);
     expect(order).toEqual(ids.slice(0, 20));
+  });
+});
+
+describe("milestones", () => {
+  it("adds a dated milestone to the project brief for a significant card", async () => {
+    const { deps } = setup();
+    const appendMilestone = vi.fn(async () => {});
+    deps.store.appendMilestone = appendMilestone;
+    await analyseEvent("e1", deps);
+    expect(appendMilestone).toHaveBeenCalledWith("p1", `2026-11-08: ${AI_CARD.what}`);
+  });
+
+  it("skips minor cards and survives a failing write", async () => {
+    const minor = setup(undefined, (async () => ({ data: { ...AI_CARD, significance: 1 }, usage: {} as never })) as unknown as AnalyseDeps["callJson"]);
+    const append = vi.fn(async () => {});
+    minor.deps.store.appendMilestone = append;
+    await analyseEvent("e1", minor.deps);
+    expect(append).not.toHaveBeenCalled();
+
+    const failing = setup();
+    failing.deps.store.appendMilestone = async () => {
+      throw new Error("db down");
+    };
+    await analyseEvent("e1", failing.deps);
+    expect(failing.mem.cards).toHaveLength(1);
+    expect(failing.mem.processed).toEqual(["e1"]);
+  });
+
+  it("keeps the newest 20, skips duplicates and ignores bad data", () => {
+    const many = Array.from({ length: 20 }, (_, i) => `m${i}`);
+    expect(withMilestone(many, "new")).toEqual([...many.slice(1), "new"]);
+    expect(withMilestone(["a"], "a")).toEqual(["a"]);
+    expect(withMilestone(null, "a")).toEqual(["a"]);
+    expect(withMilestone(["a", 3], "b")).toEqual(["a", "b"]);
+  });
+
+  it("shortens long lines", () => {
+    const line = milestoneLine({ what: "x".repeat(300), occurredAt: new Date("2026-11-14T01:00:00Z") });
+    expect(line.startsWith("2026-11-14: ")).toBe(true);
+    expect(line.length).toBeLessThanOrEqual(12 + 160);
   });
 });

@@ -181,3 +181,25 @@ describe("voice prompts", () => {
     expect(p.system).toMatch(/never|prefer|format/);
   });
 });
+
+describe("composePrompt project log", () => {
+  const base = {
+    brief: null,
+    cards: [{ what: "Added scoring", why: null, how: null, impact: null, significance: 2 }],
+    voice: { dna: {}, activeRules: [], examples: {} },
+    channels: [{ key: "x-main", register: "x-short" as const, limit: 280 }],
+    recentPosts: [],
+    trigger: "digest",
+    hashtags: [],
+  };
+
+  it("puts the log in the per-call part so the cached system prompt stays stable", () => {
+    const p = composePrompt({ ...base, projectLog: ["2026-11-08: Shipped the inbox"] });
+    expect(p.user).toContain("2026-11-08: Shipped the inbox");
+    expect(p.system).not.toContain("Shipped the inbox");
+  });
+
+  it("leaves the section out when there is no log", () => {
+    expect(composePrompt(base).user).not.toContain("project_log");
+  });
+});

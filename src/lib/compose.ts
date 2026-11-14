@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { changeCards, drafts, projects, users, voiceProfiles, voiceRules, type CachedChannel } from "@/db/schema";
+import { changeCards, drafts, projectRepos, projects, users, voiceProfiles, voiceRules, type CachedChannel } from "@/db/schema";
 import { callJson as realCallJson, type Usage } from "@/lib/ai/claude";
 import { fallbackDraft } from "@/lib/ai/fallback";
 import { composePrompt, voiceCheckPrompt, type CardInput } from "@/lib/ai/prompts";
@@ -32,6 +32,8 @@ export type ComposeContext = {
   voiceProfiles: { projectId: string | null; register: string; dna: Record<string, unknown> }[];
   rules: { kind: string; rule: string; pattern: string | null; register: string | null }[];
   recentPosts: string[];
+  /** Dated milestone lines, oldest first. */
+  projectLog?: string[];
 };
 
 export type ChannelGate = { fixed: string[]; violations: Violation[]; blocked: boolean; limit: number };
@@ -135,6 +137,7 @@ export async function compose(
       voice: { dna, activeRules, examples },
       channels: specs,
       recentPosts: ctx.recentPosts,
+      projectLog: ctx.projectLog,
       trigger,
       nudge: opts.nudge,
       hashtags: config.posting.hashtags,
@@ -184,6 +187,18 @@ export async function compose(
   return { draftId, variants, gate: gates, voiceScore, suggestions };
 }
 
+const PROJECT_LOG_LINES = 10;
+
+/** Formats recent significant cards (newest first) as dated lines, oldest first, leaving out the cards being drafted. */
+export function projectLogLines(rows: { what: string; occurredAt: Date }[], drafting: string[] = []): string[] {
+  const skip = new Set(drafting);
+  return rows
+    .filter((r) => !skip.has(r.what))
+    .slice(0, PROJECT_LOG_LINES)
+    .map((r) => `${r.occurredAt.toISOString().slice(0, 10)}: ${r.what}`)
+    .reverse();
+}
+
 export const drizzleComposeStore: ComposeStore = {
   async load(projectId, cardIds) {
     const [row] = await db
@@ -194,7 +209,7 @@ export const drizzleComposeStore: ComposeStore = {
     if (!row) throw new Error(`Project ${projectId} not found`);
     const { project, user } = row;
 
-    const [cards, profiles, rules, recent] = await Promise.all([
+    const [cards, profiles, rules, recent, log] = await Promise.all([
       cardIds.length ? db.select().from(changeCards).where(inArray(changeCards.id, cardIds)) : Promise.resolve([]),
       db
         .select()
@@ -210,6 +225,13 @@ export const drizzleComposeStore: ComposeStore = {
         .where(and(eq(drafts.projectId, projectId), eq(drafts.status, "posted")))
         .orderBy(desc(drafts.createdAt))
         .limit(5),
+      db
+        .select({ what: changeCards.what, occurredAt: changeCards.occurredAt })
+        .from(changeCards)
+        .innerJoin(projectRepos, eq(projectRepos.repoFullName, changeCards.repoFullName))
+        .where(and(eq(projectRepos.projectId, projectId), gte(changeCards.significance, 2), eq(changeCards.cancelled, false)))
+        .orderBy(desc(changeCards.occurredAt))
+        .limit(PROJECT_LOG_LINES),
     ]);
 
     return {
@@ -222,6 +244,7 @@ export const drizzleComposeStore: ComposeStore = {
       voiceProfiles: profiles,
       rules,
       recentPosts: recent.map((d) => Object.values(d.finalText ?? d.variants)[0]).filter((t): t is string => !!t),
+      projectLog: projectLogLines(log, cardIds.length ? cards.map((c) => c.what) : []),
     };
   },
   async insertDraft(draft) {
