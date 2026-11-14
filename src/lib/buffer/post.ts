@@ -238,3 +238,33 @@ export const drizzlePublishStore: PublishStore = {
     await db.update(drafts).set({ status, ...extra }).where(eq(drafts.id, draftId));
   },
 };
+
+export type LivePost = { status: string; externalLink: string | null };
+
+/** Builds one aliased query for several posts, so the timeline costs a single Buffer call. */
+export function livePostsQuery(ids: string[]) {
+  const vars = ids.map((_, i) => `$id${i}: PostId!`).join(", ");
+  const fields = ids.map((_, i) => `p${i}: post(input: { id: $id${i} }) { id status externalLink }`).join("\n  ");
+  return { query: `query LivePosts(${vars}) {\n  ${fields}\n}`, variables: Object.fromEntries(ids.map((id, i) => [`id${i}`, id])) };
+}
+
+/**
+ * Current status and public link of posts already handed to Buffer. Best effort: a slow or failed lookup
+ * returns what it has, and the timeline falls back to Buffer in general.
+ */
+export async function fetchLivePosts(userId: string, ids: string[], deps: { gql?: Gql; timeoutMs?: number } = {}): Promise<Map<string, LivePost>> {
+  const out = new Map<string, LivePost>();
+  if (!ids.length) return out;
+  const gql: Gql = deps.gql ?? ((u, q, v) => bufferGql(u, q, v));
+  const { query, variables } = livePostsQuery(ids);
+  try {
+    const data = (await Promise.race([
+      gql(userId, query, variables),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), deps.timeoutMs ?? 2500)),
+    ])) as Record<string, { id: string; status: string; externalLink: string | null } | null>;
+    for (const p of Object.values(data ?? {})) if (p?.id) out.set(p.id, { status: p.status, externalLink: p.externalLink ?? null });
+  } catch (e) {
+    console.error("Could not refresh posts from Buffer", (e as Error).message);
+  }
+  return out;
+}

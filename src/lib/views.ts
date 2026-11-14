@@ -2,6 +2,7 @@ import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { changeCards, drafts, events, posts, projectRepos, projects, users, voiceProfiles, voiceRules } from "@/db/schema";
+import { fetchLivePosts } from "@/lib/buffer/post";
 import { channelKey, resolveTargets } from "@/lib/channels";
 import { resolveConfig, type PartialConfig, type ProjectConfig } from "@/lib/config";
 import { displayRepo } from "@/lib/demo";
@@ -153,6 +154,8 @@ export function toPostRow(input: {
   draft: Pick<DraftRow, "variants" | "finalText" | "gate" | "scheduledFor">;
   projectName: string;
   sources: PostRow["sources"];
+  /** The published post's public URL, when Buffer has one. */
+  link?: string | null;
 }): PostRow | null {
   const { post, draft } = input;
   const targets = (draft.gate as DraftGateLike | null)?.targets ?? [];
@@ -168,7 +171,7 @@ export function toPostRow(input: {
     excerpt: text.length > 280 ? `${text.slice(0, 279)}…` : text,
     status,
     at: (draft.scheduledFor ?? post.createdAt).toISOString(),
-    bufferUrl: real ? BUFFER_APP_URL : null,
+    bufferUrl: input.link ?? (real ? BUFFER_APP_URL : null),
     sources: input.sources,
   };
 }
@@ -278,6 +281,9 @@ export async function inboxCount(userId: string): Promise<number> {
   return row?.n ?? 0;
 }
 
+/** How many recent posts the timeline refreshes from Buffer per load. */
+const LIVE_POSTS = 20;
+
 export async function loadTimeline(userId: string): Promise<PostRow[]> {
   const rows = await db
     .select({ post: posts, draft: drafts, projectName: projects.name })
@@ -287,10 +293,21 @@ export async function loadTimeline(userId: string): Promise<PostRow[]> {
     .where(eq(projects.userId, userId))
     .orderBy(desc(posts.createdAt))
     .limit(200);
-  const cards = await loadCards([...new Set(rows.flatMap((r) => r.draft.cardIds))]);
+  const [cards, live] = await Promise.all([
+    loadCards([...new Set(rows.flatMap((r) => r.draft.cardIds))]),
+    fetchLivePosts(
+      userId,
+      rows.flatMap(({ post }) => (post.bufferPostId && !post.bufferPostId.startsWith("demo_") && post.status !== "error" ? [post.bufferPostId] : [])).slice(0, LIVE_POSTS),
+    ),
+  ]);
+  // Posts Buffer has sent since we queued them: record it so the status is right next time too.
+  const nowSent = rows.filter(({ post }) => post.status === "queued" && live.get(post.bufferPostId ?? "")?.status === "sent").map(({ post }) => post.id);
+  if (nowSent.length) await db.update(posts).set({ status: "sent" }).where(inArray(posts.id, nowSent)).catch(() => undefined);
   return rows.flatMap(({ post, draft, projectName }) => {
     const sources = pick(cards, draft.cardIds).map(({ view }) => ({ ref: view.ref, url: view.url }));
-    const row = toPostRow({ post, draft, projectName, sources });
+    const info = live.get(post.bufferPostId ?? "");
+    const status = info?.status === "sent" ? "sent" : post.status;
+    const row = toPostRow({ post: { ...post, status }, draft, projectName, sources, link: info?.externalLink });
     return row ? [row] : [];
   });
 }

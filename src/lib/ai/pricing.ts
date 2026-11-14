@@ -62,8 +62,22 @@ export function cacheSavings(model: string, u: TokenUsage): number {
   return (u.cacheReadTokens * (r.input - r.cacheRead)) / 1e6;
 }
 
-/** Rough count (about four characters per token); avoids a count_tokens round trip before every call. */
-export const estimateTokens = (text: string) => Math.ceil(text.length / 4);
+/** Characters that are rare in prose and common in code and diffs. */
+const CODE_CHARS = /[{}()[\];=<>+\-*/\\|&_:"'`$#@]/g;
+
+/**
+ * Rough count without a count_tokens round trip. Prose runs about four characters per token; code and diffs
+ * tokenize denser (about three), so the divisor slides with the share of code-like characters.
+ */
+export function estimateTokens(text: string): number {
+  if (!text) return 0;
+  const codeShare = (text.match(CODE_CHARS)?.length ?? 0) / text.length;
+  const charsPerToken = codeShare >= 0.08 ? 3 : codeShare >= 0.04 ? 3.5 : 4;
+  return Math.ceil(text.length / charsPerToken);
+}
+
+/** Smallest prompt prefix the API will cache; shorter cached prefixes are billed as plain input. */
+export const MIN_CACHEABLE_TOKENS = 1024;
 
 /** Typical share of max_tokens a call spends on output (adaptive thinking included). Tune from the usage page. */
 export const PURPOSE_OUTPUT_RATIO: Record<AiPurpose, number> = {
@@ -80,10 +94,28 @@ export const PURPOSE_OUTPUT_RATIO: Record<AiPurpose, number> = {
 
 export type CallEstimate = { estInputTokens: number; estOutputTokens: number; estCostUsd: number };
 
-/** Worst-case-ish estimate: assumes no cache hits, so cached calls come in under it. */
-export function estimateCall(args: { model: string; system: string; user: string; maxTokens: number; purpose: AiPurpose }): CallEstimate {
-  const estInputTokens = estimateTokens(args.system) + estimateTokens(args.user);
+/**
+ * Estimate before the call. With `cacheSystem`, a system prompt long enough to cache is priced at the cache-read
+ * rate (the usual case for repeated calls); a cold cache costs a little more than this.
+ */
+export function estimateCall(args: {
+  model: string;
+  system: string;
+  user: string;
+  maxTokens: number;
+  purpose: AiPurpose;
+  cacheSystem?: boolean;
+}): CallEstimate {
+  const systemTokens = estimateTokens(args.system);
+  const userTokens = estimateTokens(args.user);
+  const estInputTokens = systemTokens + userTokens;
   const estOutputTokens = Math.min(args.maxTokens, Math.round(args.maxTokens * PURPOSE_OUTPUT_RATIO[args.purpose]));
-  const estCostUsd = costOf(args.model, { inputTokens: estInputTokens, outputTokens: estOutputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 });
+  const cached = args.cacheSystem && systemTokens >= MIN_CACHEABLE_TOKENS;
+  const estCostUsd = costOf(args.model, {
+    inputTokens: cached ? userTokens : estInputTokens,
+    outputTokens: estOutputTokens,
+    cacheReadTokens: cached ? systemTokens : 0,
+    cacheWriteTokens: 0,
+  });
   return { estInputTokens, estOutputTokens, estCostUsd };
 }

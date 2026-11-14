@@ -124,7 +124,7 @@ export function createClaude(deps: ClaudeDeps = {}) {
     const system: Anthropic.MessageCreateParamsNonStreaming["system"] = args.cacheSystem
       ? [{ type: "text", text: args.system + JSON_ONLY, cache_control: { type: "ephemeral" } }]
       : args.system + JSON_ONLY;
-    const est = estimateCall({ model, system: args.system + JSON_ONLY, user: args.user, maxTokens: args.maxTokens, purpose: meta.purpose });
+    const est = estimateCall({ model, system: args.system + JSON_ONLY, user: args.user, maxTokens: args.maxTokens, purpose: meta.purpose, cacheSystem: args.cacheSystem });
     const started = now();
     let isDemo = meta.isDemo ?? false;
     let usage = ZERO;

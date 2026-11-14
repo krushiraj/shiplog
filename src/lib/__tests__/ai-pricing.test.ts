@@ -71,6 +71,27 @@ describe("estimates", () => {
     expect(est.estCostUsd).toBeCloseTo(costOf("claude-sonnet-5-5", usage({ inputTokens: est.estInputTokens, outputTokens: est.estOutputTokens })), 9);
   });
 
+  it("counts code and diffs denser than prose", () => {
+    const diff = "+  const x = foo(a, b);\n-  if (y) { return [z]; }\n".repeat(50);
+    expect(estimateTokens(diff)).toBe(Math.ceil(diff.length / 3));
+    expect(estimateTokens(diff)).toBeGreaterThan(Math.ceil(diff.length / 4));
+  });
+
+  it("prices a cacheable system prompt at the cache-read rate when caching is on", () => {
+    const args = { model: "claude-sonnet-5-5", system: "s".repeat(8000), user: "u".repeat(400), maxTokens: 1000, purpose: "compose" as const };
+    const cold = estimateCall(args);
+    const warm = estimateCall({ ...args, cacheSystem: true });
+    expect(warm.estInputTokens).toBe(cold.estInputTokens);
+    const out = warm.estOutputTokens;
+    expect(warm.estCostUsd).toBeCloseTo(costOf(args.model, usage({ inputTokens: 100, cacheReadTokens: 2000, outputTokens: out })), 9);
+    expect(warm.estCostUsd).toBeLessThan(cold.estCostUsd);
+  });
+
+  it("prices a system prompt too short to cache as plain input", () => {
+    const args = { model: "claude-sonnet-5-5", system: "s".repeat(400), user: "u".repeat(400), maxTokens: 1000, purpose: "compose" as const };
+    expect(estimateCall({ ...args, cacheSystem: true }).estCostUsd).toBeCloseTo(estimateCall(args).estCostUsd, 12);
+  });
+
   it("has an output ratio for every purpose, never above 1", () => {
     for (const r of Object.values(PURPOSE_OUTPUT_RATIO)) {
       expect(r).toBeGreaterThan(0);
