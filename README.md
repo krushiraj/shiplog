@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Shiplog
 
-## Getting Started
+**Your commits, posted in your voice.** Shiplog watches your GitHub repos, turns real work into build-in-public posts, and queues them through [Buffer](https://buffer.com) once you approve.
 
-First, run the development server:
+Live: https://getshiplog.vercel.app · Built for the Buffer Commit contest.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Why
+
+Building in public works, but turning a commit log into a post takes longer than the commit did, so most people stop. Shiplog does the writing and leaves you a two-minute review.
+
+## How it works
+
+```
+GitHub push / release ──webhook──▶ change card ──▶ scheduler ──▶ draft per channel ──▶ you approve ──▶ Buffer
+                                    (Haiku)        digest /        (Sonnet, your         per channel     createPost
+                                                   instant         voice + rules)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. **Change cards.** The Shiplog GitHub App sends every push and release to `/api/github/webhook` (HMAC-verified). A small model reads each change and writes a plain-language card: what changed, why it matters, a significance score (0–3), and an open question when the "why" is a guess.
+2. **Project memory.** A project brief (what it is, who it's for, stack, milestones, facts you've answered) is built once and reused, so the repo isn't re-read on every post.
+3. **Scheduler.** Cards roll up into a daily digest once they're significant enough. Releases and major changes draft right away. **Draft now** on a project page writes one on demand. Ticks run after webhook analysis, on Inbox visits, and on a cron backstop.
+4. **Drafts per channel.** One draft, one text per channel: a story for LinkedIn and a short take for X. A gate checks real limits. X accounts with a subscription (read from Buffer's `TwitterMetadata.subscriptionType`) get the 25,000-character limit.
+5. **Your voice.** Voice DNA is learned from posts you've already sent through Buffer (one register for long posts, one for short). With too little history, a six-question interview or pasted posts fill in. Every edit you make before approving is diffed into a proposed rule. A rule goes live once it's been seen twice or you confirm it on the Memory page.
+6. **You approve.** Nothing posts without you. Pick which channels to post to, then queue for the next best slot, post now, or pick a time. Posts go out through the Buffer API.
+7. **Cost control.** Every AI call is logged with its estimate and actual cost against a per-user budget (Usage page).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Buffer API usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- OAuth sign-in
+- Channels query, including channel metadata (X subscription tier)
+- Sent-post history, for voice learning
+- `createPost`: queue, share now, or schedule; draft mode supported
 
-## Learn More
+## Stack
 
-To learn more about Next.js, take a look at the following resources:
+Next.js 15 (App Router) · TypeScript · Drizzle + Neon Postgres · Anthropic Claude (Haiku for analysis, Sonnet for writing and voice) · Vercel · vitest (425 tests)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Run it locally
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+yarn install
+yarn db:migrate
+yarn dev
+```
 
-## Deploy on Vercel
+Put these in `.env.local`: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `BUFFER_CLIENT_ID`, `BUFFER_CLIENT_SECRET`, `BUFFER_SCOPES`, `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_PRIVATE_KEY` (or `GITHUB_PRIVATE_KEY_PATH`), `GITHUB_WEBHOOK_SECRET`, `SESSION_SECRET`, `TOKEN_ENC_KEY`, `CRON_SECRET`, `APP_URL`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Create a GitHub App with push and release events and its webhook at `<APP_URL>/api/github/webhook`, and a Buffer app with its redirect at `<APP_URL>/api/auth/buffer/callback`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Operator scripts
+
+`yarn tsx scripts/<name>.mts`: `status` (pipeline state), `tick` (run the scheduler once), `deliveries` (GitHub webhook deliveries, and redeliver), `replay-push` (replay real commits as a signed webhook). See `docs/2026-11-09-launch-checklist.md`.
+
+## Docs
+
+- `docs/2026-11-08-shiplog-design.md`: design
+- `docs/buffer-api.md`: Buffer API notes
