@@ -2,7 +2,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { changeCards, drafts, projects } from "@/db/schema";
+import { drafts, projects } from "@/db/schema";
+import { answerCard } from "@/lib/answers";
 import { publishDraft } from "@/lib/buffer/post";
 import { compose } from "@/lib/compose";
 import { DemoLimitError, withDemoBudget } from "@/lib/demo";
@@ -112,18 +113,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
       case "answer": {
         if (!draft.cardIds.includes(body.cardId)) return error("That change is not part of this draft", 400);
-        const [card] = await db
-          .update(changeCards)
-          .set({ answer: body.answer, whyInferred: false })
-          .where(eq(changeCards.id, body.cardId))
-          .returning({ what: changeCards.what });
-        const fact = `${card.what}: ${body.answer}`;
-        await db
-          .update(projects)
-          .set({
-            brief: sql`jsonb_set(coalesce(${projects.brief}, '{}'::jsonb), '{facts}', coalesce(${projects.brief}->'facts', '[]'::jsonb) || to_jsonb(${fact}::text))`,
-          })
-          .where(eq(projects.id, draft.projectId));
+        await answerCard(draft.projectId, body.cardId, body.answer);
         const draftId = body.rewrite && draft.status === "pending" ? await recompose(userId, draft) : null;
         return NextResponse.json({ ok: true, draftId });
       }

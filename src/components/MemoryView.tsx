@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { RiArrowGoBackLine, RiBookOpenLine, RiQuestionLine, RiStackLine, RiQuillPenLine } from "@remixicon/react";
+import { RiArrowGoBackLine, RiBookOpenLine, RiStackLine, RiQuillPenLine } from "@remixicon/react";
 import { Chip, type ChipColor } from "@/components/base/badges/chip";
 import { Button } from "@/components/base/buttons/button";
 import { Switch } from "@/components/base/switch/switch";
 import { Tab, TabList, TabPanel, Tabs } from "@/components/base/tabs/tabs";
 import { Textarea } from "@/components/base/textarea/textarea";
 import { toast } from "@/components/base/toast/toast";
+import { AnswerQuestionForm } from "@/components/AnswerQuestionForm";
 import { ChangeCardItem } from "@/components/ChangeCardItem";
 import { ruleAction, sendJson } from "@/lib/client-api";
 import type { BriefView, ChangeCardView, VoiceRuleView } from "@/lib/ui-types";
@@ -179,11 +180,7 @@ export function MemoryView({ projectId, projects = [], brief, cards, rules: init
           {cards.map((c) => (
             <div key={c.id} className="flex flex-col gap-1.5">
               <ChangeCardItem card={c} hasQuestion={!!c.openQuestion} />
-              {c.openQuestion && (
-                <p className="flex items-center gap-1.5 px-1 text-caption-1-regular text-text-tertiary">
-                  <RiQuestionLine className="size-3.5 shrink-0" aria-hidden /> {c.openQuestion} Answer it on the draft in your inbox.
-                </p>
-              )}
+              {c.openQuestion && <AnswerQuestionForm projectId={projectId} cardId={c.id} question={c.openQuestion} />}
             </div>
           ))}
         </div>
