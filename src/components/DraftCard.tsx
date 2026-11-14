@@ -40,7 +40,7 @@ export type DraftCardProps = {
   /** Set while a regenerate request is in flight. */
   regenerating?: boolean;
   onEdit?: (draftId: string, channel: ChannelKey, text: string) => void;
-  onApprove?: (draftId: string, when: ApproveWhen, texts: Partial<Record<ChannelKey, string>>) => void;
+  onApprove?: (draftId: string, when: ApproveWhen, texts: Partial<Record<ChannelKey, string>>, channels?: ChannelKey[]) => void;
   onRegenerate?: (draftId: string, nudge: string) => void;
   onReject?: (draftId: string, reason: string) => void;
   onSnooze?: (draftId: string) => void;
@@ -89,6 +89,7 @@ export function DraftCard({
   const channels = (Object.keys(CHANNELS) as ChannelKey[]).filter((c) => draft.variants[c] !== undefined);
   const [channel, setChannel] = useState<ChannelKey>(channels[0] ?? "linkedin");
   const [texts, setTexts] = useState<Partial<Record<ChannelKey, string>>>(draft.variants);
+  const [picked, setPicked] = useState<ChannelKey[]>(channels);
   const [panel, setPanel] = useState<"none" | "regenerate" | "reject" | "schedule">("none");
   const [nudge, setNudge] = useState("");
   const [rejectReason, setRejectReason] = useState("");
@@ -107,10 +108,11 @@ export function DraftCard({
 
   const limitOf = (c: ChannelKey) => draft.limits?.[c] ?? CHANNELS[c].limit;
   const tone = driftTone(draft.gate.drift);
-  const overLimit = channels.some((c) => (texts[c] ?? "").length > limitOf(c));
+  const overLimit = picked.some((c) => (texts[c] ?? "").length > limitOf(c));
   const edited = channels.some((c) => texts[c] !== draft.variants[c]);
 
-  const approve = (when: ApproveWhen) => onApprove?.(draft.id, when, texts);
+  const approve = (when: ApproveWhen) => onApprove?.(draft.id, when, texts, picked);
+  const togglePick = (c: ChannelKey) => setPicked((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c]));
   const sendNudge = (value: string) => {
     if (!value.trim()) return;
     onRegenerate?.(draft.id, value.trim());
@@ -396,12 +398,32 @@ export function DraftCard({
           )}
 
           {/* Actions */}
+          {channels.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Channels to post to">
+              <span className="text-body-2-medium text-text-secondary">Post to</span>
+              {channels.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={picked.includes(c)}
+                  onClick={() => togglePick(c)}
+                  className={cx(
+                    "inline-flex cursor-pointer items-center gap-1 rounded-full border px-3 py-1 text-body-2-medium",
+                    picked.includes(c) ? "border-transparent bg-accent-50 text-accent-700 dark:bg-accent-950 dark:text-accent-300" : "border-border-button-default text-text-tertiary line-through",
+                  )}
+                >
+                  {picked.includes(c) && <RiCheckLine className="size-4" aria-hidden />}
+                  {CHANNELS[c].label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2 border-t border-separator-border pt-4">
             <div className="flex items-center">
               <Button
                 leadingIcon={RiCheckLine}
                 className="rounded-e-none"
-                disabled={overLimit || regenerating}
+                disabled={overLimit || regenerating || picked.length === 0}
                 onClick={() => approve({ kind: "next_best" })}
                 title={overLimit ? "One of the channels is over its character limit" : `Queue for ${draft.slot.label}`}
               >
@@ -410,7 +432,7 @@ export function DraftCard({
               <Dropdown>
                 <DropdownTrigger
                   aria-label="More approve options"
-                  isDisabled={overLimit || regenerating}
+                  isDisabled={overLimit || regenerating || picked.length === 0}
                   className={cx(buttonStyles.base, buttonStyles.size.medium, buttonStyles.variant.primary, "rounded-s-none border-s border-white/25 px-1.5")}
                 >
                   <RiArrowDownSLine className="size-5" aria-hidden />

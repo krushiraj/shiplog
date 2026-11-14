@@ -96,7 +96,7 @@ const retryable = (row: PostRow) => !row.bufferPostId && (row.status === "error"
 export async function publishDraft(
   draftId: string,
   when: When,
-  opts: { saveToDraft?: boolean } = {},
+  opts: { saveToDraft?: boolean; channels?: string[] } = {},
   deps: PublishDeps = {},
 ): Promise<{ status: string; results: ChannelResult[] }> {
   const store = deps.store ?? drizzlePublishStore;
@@ -112,7 +112,8 @@ export async function publishDraft(
   const config = resolveConfig(project.userDefaults as PartialConfig, project.projectConfig as PartialConfig);
   const cached = user.channels ?? [];
   const stored = (draft.gate?.targets as { channelId: string; key: string }[] | undefined) ?? null;
-  const targets = stored ?? resolveTargets(config.channels, cached, config);
+  const all = stored ?? resolveTargets(config.channels, cached, config);
+  const targets = opts.channels?.length ? all.filter((t) => opts.channels!.includes(t.key)) : all;
   const saveToDraft = opts.saveToDraft ?? config.review.mode === "draft";
   const mode = when === "now" ? "shareNow" : when === "next_best_slot" ? "addToQueue" : "customScheduled";
   const dueAt = typeof when === "object" ? when.at.toISOString() : undefined;

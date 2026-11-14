@@ -73,14 +73,14 @@ export function InboxView({ initialDrafts }: { initialDrafts: DraftView[] }) {
     );
   };
 
-  const onApprove = async (id: string, when: ApproveWhen, texts: DraftView["variants"]) => {
+  const onApprove = async (id: string, when: ApproveWhen, texts: DraftView["variants"], channels?: ChannelKey[]) => {
     const draft = drafts.find((d) => d.id === id);
     flushEdits(id);
     remove(id);
     const body =
       when.kind === "now" ? "now" : when.kind === "at" ? { at: when.iso } : "next_best_slot";
     try {
-      const res = await draftAction<ApproveResponse>(id, { action: "approve", when: body, texts });
+      const res = await draftAction<ApproveResponse>(id, { action: "approve", when: body, texts, channels });
       if (res.simulated) {
         toast.success("Posted (simulated) — connect Buffer to post for real.");
       } else if (res.errors.length) {

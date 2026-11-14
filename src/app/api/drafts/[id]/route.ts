@@ -15,7 +15,7 @@ const Texts = z.record(z.string(), z.string().max(20_000));
 
 const Action = z.discriminatedUnion("action", [
   z.object({ action: z.literal("edit"), channel: z.string().min(1), text: z.string().max(20_000) }),
-  z.object({ action: z.literal("approve"), when: When, texts: Texts.optional() }),
+  z.object({ action: z.literal("approve"), when: When, texts: Texts.optional(), channels: z.array(z.string()).optional() }),
   z.object({ action: z.literal("reject"), reason: z.string().max(300).optional().default("") }),
   z.object({ action: z.literal("snooze") }),
   z.object({ action: z.literal("regenerate"), nudge: z.string().max(500).optional() }),
@@ -79,7 +79,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         const when = typeof body.when === "object" ? { at: new Date(body.when.at) } : body.when;
         let result;
         try {
-          result = await publishDraft(id, when);
+          result = await publishDraft(id, when, { channels: body.channels });
         } catch (e) {
           await db.update(drafts).set({ status: "pending" }).where(eq(drafts.id, id));
           return error(`Could not post: ${(e as Error).message}`, 502);
